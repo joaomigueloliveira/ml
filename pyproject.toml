@@ -20,7 +20,11 @@ fc-eval = "fc_distill.evaluate:main"
 
 [dependency-groups]
 dev = [
+    "ipykernel>=7.4.0",
+    "matplotlib>=3.11.2",
     "mypy>=2.4.1",
+    "nbconvert>=7.17.2",
+    "nbformat>=5.11.1",
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",
     "pytest-cov>=7.0.0",
@@ -56,15 +60,18 @@ select = [
 # GPU-only libraries load inside functions so the package imports on CPU-only CI.
 banned-module-level-imports = ["vllm", "torch", "trl", "transformers", "peft"]
 
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["E703"]  # a trailing ";" after a plot call is the notebook idiom to hide the repr
+
 [tool.mypy]
 strict = true
 packages = ["fc_distill"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-# Treated as untyped everywhere: vllm is a GPU-only extra that CI doesn't install, so skipping it
+# Treated as untyped everywhere: vllm and transformers are GPU extras that CI doesn't install, so skipping them
 # keeps local and CI type checks identical.
-module = ["datasets.*", "vllm.*"]
+module = ["datasets.*", "vllm.*", "transformers.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
 

@@ -1,4 +1,4 @@
-"""Greedy eval of a model on the held-out xLAM split with vLLM.
+"""Greedy eval of a model on the validation or test split with vLLM.
 
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --n 500
 """
@@ -9,14 +9,15 @@ import os
 import time
 from pathlib import Path
 
-from fc_distill.data import load_split, to_messages
+from fc_distill.data import SPLITS, load_split, to_messages
 from fc_distill.scoring import score, summarize
 
 
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--model", required=True, help="HF model id or local path")
-    ap.add_argument("--n", type=int, default=None, help="first n eval examples (default: all)")
+    ap.add_argument("--split", choices=SPLITS[1:], default="validation")
+    ap.add_argument("--n", type=int, default=None, help="first n examples (default: all)")
     ap.add_argument("--out", type=Path, default=None, help="default: runs/eval-<model>")
     ap.add_argument("--max-model-len", type=int, default=4096)
     ap.add_argument("--max-tokens", type=int, default=512)
@@ -36,8 +37,8 @@ def main() -> None:
     # Imported here so the rest of the package (and its tests) don't need the GPU extra.
     from vllm import LLM, SamplingParams
 
-    examples = load_split("eval")[: args.n]
-    out: Path = args.out or Path("runs") / ("eval-" + args.model.replace("/", "_"))
+    examples = load_split(args.split)[: args.n]
+    out: Path = args.out or Path("runs") / f"eval-{args.split}-{args.model.replace('/', '_')}"
     out.mkdir(parents=True, exist_ok=True)
 
     llm = LLM(
@@ -69,6 +70,7 @@ def main() -> None:
 
     summary = summarize(scores) | {
         "model": args.model,
+        "split": args.split,
         "seconds": round(elapsed, 1),
         "output_tokens": sum(len(o.outputs[0].token_ids) for o in outputs),
     }

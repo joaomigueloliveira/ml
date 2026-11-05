@@ -1,16 +1,14 @@
-"""xLAM-60k loading, a fixed train/eval split, and the prompt every model sees."""
+"""xLAM-60k loading at a pinned revision, the committed splits, and the prompt every model sees."""
 
 import json
-import random
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
 from datasets import load_dataset
 
 DATASET = "Salesforce/xlam-function-calling-60k"
+DATASET_REVISION = "26d14ebfe18b1f7b524bd39b404b50af5dc97866"
 DEFAULT_SPLITS_PATH = Path("data/splits.json")
-EVAL_SIZE = 1000
-SEED = 0
 
 SYSTEM_PROMPT = """You are a function-calling assistant. You have access to these tools:
 
@@ -20,7 +18,8 @@ Answer the user's request by calling the tools. Reply with ONLY a JSON list of c
 in the form [{{"name": "<tool name>", "arguments": {{<argument name>: <value>, ...}}}}]. \
 No explanations, no markdown."""
 
-Split = Literal["train", "eval"]
+Split = Literal["train", "validation", "test"]
+SPLITS: tuple[Split, ...] = ("train", "validation", "test")
 
 
 class Call(TypedDict):
@@ -40,24 +39,21 @@ class Message(TypedDict):
     content: str
 
 
-def make_splits(n: int, eval_size: int = EVAL_SIZE, seed: int = SEED) -> dict[Split, list[int]]:
-    """Deterministically partition row indices 0..n-1 into eval and train."""
-    idx = list(range(n))
-    random.Random(seed).shuffle(idx)
-    return {"eval": sorted(idx[:eval_size]), "train": sorted(idx[eval_size:])}
+def load_all() -> list[Example]:
+    """Every row of the dataset at the pinned revision, with tools and answers parsed."""
+    ds = load_dataset(DATASET, split="train", revision=DATASET_REVISION)
+    return [parse_row(row) for row in ds]
 
 
 def load_split(split: Split, splits_path: Path = DEFAULT_SPLITS_PATH) -> list[Example]:
-    """Return the examples of one split. The split file is created on first use and committed,
-    so every experiment is scored on exactly the same held-out rows."""
-    ds = load_dataset(DATASET, split="train")
-    if splits_path.exists():
-        splits = json.loads(splits_path.read_text())
-    else:
-        splits = make_splits(len(ds))
-        splits_path.parent.mkdir(parents=True, exist_ok=True)
-        splits_path.write_text(json.dumps(splits))
-    return [parse_row(ds[i]) for i in splits[split]]
+    """The examples of one committed split (see `fc_distill.splits` for how it was built)."""
+    if not splits_path.exists():
+        raise FileNotFoundError(
+            f"{splits_path} not found; it is built by notebooks/01_dataset.ipynb "
+            "(fc_distill.splits.write_splits)"
+        )
+    ids = set(json.loads(splits_path.read_text())[split])
+    return [ex for ex in load_all() if ex["id"] in ids]
 
 
 def parse_row(row: dict[str, Any]) -> Example:

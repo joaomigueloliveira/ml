@@ -1,6 +1,6 @@
 import json
 
-from fc_distill.data import make_splits, parse_row, to_messages
+from fc_distill.data import parse_row, to_messages
 
 ROW = {
     "id": 7,
@@ -8,18 +8,6 @@ ROW = {
     "tools": json.dumps([{"name": "get_weather", "parameters": {"city": {"type": "str"}}}]),
     "answers": json.dumps([{"name": "get_weather", "arguments": {"city": "Lisbon", "days": 3}}]),
 }
-
-
-def test_splits_are_deterministic_disjoint_and_complete():
-    a, b = make_splits(100, eval_size=10, seed=0), make_splits(100, eval_size=10, seed=0)
-    assert a == b
-    assert len(a["eval"]) == 10
-    assert set(a["eval"]).isdisjoint(a["train"])
-    assert sorted(a["eval"] + a["train"]) == list(range(100))
-
-
-def test_different_seed_gives_different_eval_set():
-    assert make_splits(100, 10, seed=0)["eval"] != make_splits(100, 10, seed=1)["eval"]
 
 
 def test_parse_row_decodes_json_fields():
