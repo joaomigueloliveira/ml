@@ -1,0 +1,23 @@
+# 0001. Train / validation / test, with test only for official numbers
+
+Date: 2026-11-05 · Status: accepted
+
+## Context
+
+Every training method produces checkpoints and has settings (learning rate, steps, LoRA rank). Picking
+them by looking at the same rows we report on tunes the method to those rows and inflates the final
+number. xLAM-60k has far more rows than we need for evaluation.
+
+## Decision
+
+Three random splits of xLAM-60k: **validation** (1,000 rows), **test** (2,000 rows), **train** (the rest).
+
+- Checkpoint selection, early stopping and setting comparisons use **validation** only.
+- **Test** is run for the official baselines and for each method's final checkpoint, nothing else.
+- 2,000 test rows put the 95% interval at about ±2.2 points near 50%. Comparisons between models use
+  paired McNemar tests on the same rows.
+
+## Consequences
+
+- No result in the write-up was chosen by looking at test.
+- Test runs are rare, so their cost doesn't matter; validation runs happen often and stay at 1,000 rows.

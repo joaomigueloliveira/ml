@@ -49,7 +49,12 @@ select = [
     "SIM",     # simplify
     "PT",      # pytest style
     "RUF",     # ruff-specific
+    "TID",     # tidy imports
 ]
+
+[tool.ruff.lint.flake8-tidy-imports]
+# GPU-only libraries load inside functions so the package imports on CPU-only CI.
+banned-module-level-imports = ["vllm", "torch", "trl", "transformers", "peft"]
 
 [tool.mypy]
 strict = true

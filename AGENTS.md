@@ -4,6 +4,9 @@ Function-calling distillation on xLAM-60k: a small Qwen3.5 student learns from a
 teacher via SFT, logit distillation and on-policy distillation. See `README.md` for the goal and
 metrics.
 
+Plan, phases and decisions: issue #2; the reasons behind the big ones: `docs/adr/`. Read both before
+starting any roadmap issue.
+
 ## Commands
 
 ```bash
@@ -20,10 +23,10 @@ so `uv.lock` stays in sync.
 ## Code conventions
 
 - Package code lives in `src/fc_distill/`; tests in `tests/` mirror module names.
-- Everything must pass `mypy --strict`. Untyped third-party modules are listed in `pyproject.toml`.
-- Tests run on CPU with no network. Code that needs a GPU or a download keeps its heavy imports
-  inside the function (see `evaluate.py`) so the rest of the package stays importable in CI.
-- The eval split in `data/splits.json` is fixed. Never regenerate it or train on eval rows.
+- Tests run on CPU with no network. GPU libraries are imported inside functions (ruff `TID253`).
+- Splits are train / validation / test (ADR 0001). Choose checkpoints and settings on validation;
+  the test split only produces official numbers. Test labels stay as published; `test-clean` is a
+  subset (ADR 0002).
 - Experiment outputs go to `runs/` (gitignored). Results worth keeping are summarised in `results/`.
 
 ## Workflow
@@ -33,7 +36,7 @@ so `uv.lock` stays in sync.
 - Commits and PR titles use Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`,
   `refactor:`, `ci:`). Link the issue in the PR body with `Closes #<n>`.
 - PR bodies follow `.github/pull_request_template.md`.
-- No AI attribution lines (`Co-Authored-By`, "Generated with …") in commits or PRs.
+- Commits and PR bodies carry no AI attribution; a `commit-msg` hook rejects it in commits.
 
 ## Agent skills
 
