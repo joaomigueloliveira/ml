@@ -1,6 +1,6 @@
 import json
 
-from xlam_distill.data import make_splits, parse_row, to_messages
+from fc_distill.data import make_splits, parse_row, to_messages
 
 ROW = {
     "id": 7,

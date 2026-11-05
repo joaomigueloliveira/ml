@@ -16,4 +16,4 @@ jobs:
       # Base deps + dev tools only; the GPU extras (vllm) are never installed in CI.
       - run: uv sync --locked
       - run: uv run pre-commit run --all-files --show-diff-on-failure
-      - run: uv run pytest --cov=xlam_distill --cov-report=term-missing
+      - run: uv run pytest --cov=fc_distill --cov-report=term-missing

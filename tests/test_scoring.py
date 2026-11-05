@@ -1,6 +1,6 @@
 import json
 
-from xlam_distill.scoring import parse_calls, score
+from fc_distill.scoring import parse_calls, score
 
 WEATHER = {"name": "get_weather", "arguments": {"city": "Lisbon", "days": 3}}
 TIME = {"name": "get_time", "arguments": {"tz": "Europe/Lisbon"}}

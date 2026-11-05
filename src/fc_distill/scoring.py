@@ -11,7 +11,7 @@ from collections.abc import Hashable, Sequence
 from statistics import mean
 from typing import Any, TypedDict, cast
 
-from xlam_distill.data import Call
+from fc_distill.data import Call
 
 _THINK = re.compile(r"<think>.*?</think>", re.DOTALL)
 _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)

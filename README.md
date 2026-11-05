@@ -1,4 +1,4 @@
-# xlam-distill
+# qwen-function-calling-distillation
 
 Can a small Qwen3.5 model learn function calling from a bigger one? This project compares the three
 kinds of knowledge distillation on the same task, the same held-out set and a single consumer GPU:
@@ -36,7 +36,7 @@ gated dataset (accept the terms on the dataset page, then `uv run hf auth login`
 
 ```bash
 uv sync --extra inference         # base + vLLM
-uv run xlam-eval --model Qwen/Qwen3.5-0.8B --n 500
+uv run fc-eval --model Qwen/Qwen3.5-0.8B --n 500
 ```
 
 ## Development
@@ -52,10 +52,10 @@ Linting and formatting use ruff, type checking uses mypy (strict), and both run 
 ## Layout
 
 ```
-src/xlam_distill/
+src/fc_distill/
   data.py       dataset loading, fixed split, prompt
   scoring.py    strict, deterministic scorer
-  evaluate.py   vLLM eval CLI (xlam-eval)
+  evaluate.py   vLLM eval CLI (fc-eval)
 tests/          unit tests (CPU only)
 data/           committed split file
 ```
