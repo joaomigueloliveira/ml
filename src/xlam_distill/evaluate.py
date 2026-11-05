@@ -5,6 +5,7 @@ uv run xlam-eval --model Qwen/Qwen3.5-0.8B --n 500
 
 import argparse
 import json
+import os
 import time
 from pathlib import Path
 
@@ -21,11 +22,17 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--max-tokens", type=int, default=512)
     ap.add_argument("--gpu-mem", type=float, default=0.85, help="vLLM gpu_memory_utilization")
     ap.add_argument("--quantization", default=None)
+    ap.add_argument(
+        "--max-num-seqs", type=int, default=None, help="cap concurrent sequences (big models)"
+    )
     return ap.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    # FlashInfer's sampler JIT-compiles CUDA kernels and needs nvcc, which a driver-only setup
+    # lacks. Greedy decoding doesn't need it, so fall back to vLLM's built-in sampler.
+    os.environ.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")
     # Imported here so the rest of the package (and its tests) don't need the GPU extra.
     from vllm import LLM, SamplingParams
 
@@ -38,6 +45,7 @@ def main() -> None:
         max_model_len=args.max_model_len,
         gpu_memory_utilization=args.gpu_mem,
         quantization=args.quantization,
+        **({"max_num_seqs": args.max_num_seqs} if args.max_num_seqs else {}),
         limit_mm_per_prompt={"image": 0, "video": 0},
     )
     params = SamplingParams(temperature=0.0, max_tokens=args.max_tokens)
