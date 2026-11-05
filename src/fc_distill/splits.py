@@ -28,6 +28,9 @@ class SplitReport(TypedDict):
     train_code_arguments_removed: int
     train_conflicting_labels_removed: int
     sizes: dict[str, int]
+    # Rows validation and test keep as published although they'd fail a train filter (for #8).
+    held_out_code_argument_rows: dict[str, int]
+    held_out_conflicting_label_rows: dict[str, int]
 
 
 def assign_groups(
@@ -72,12 +75,20 @@ def build_splits(
     conflicting = {i for group in conflicting_labels(train) for i in group}
     splits["train"] = sorted(train_ids - code - conflicting)
 
+    by_id = {ex["id"]: ex for ex in unique}
+    held_out = {name: [by_id[i] for i in splits[name]] for name in ("validation", "test")}
     report: SplitReport = {
         "rows": len(examples),
         "exact_duplicates_removed": len(duplicates),
         "train_code_arguments_removed": len(code),
         "train_conflicting_labels_removed": len(conflicting - code),
         "sizes": {name: len(ids) for name, ids in splits.items()},
+        "held_out_code_argument_rows": {
+            name: len({i.row_id for i in code_arguments(exs)}) for name, exs in held_out.items()
+        },
+        "held_out_conflicting_label_rows": {
+            name: sum(len(g) for g in conflicting_labels(exs)) for name, exs in held_out.items()
+        },
     }
     return splits, report
 

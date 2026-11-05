@@ -111,8 +111,42 @@ def missing_required(examples: Sequence[Example]) -> list[tuple[int, str, str]]:
     return found
 
 
+def unknown_calls(examples: Sequence[Example]) -> list[tuple[int, str, str | None]]:
+    """(row id, function, argument) for calls to a tool that isn't offered (argument None) or
+    arguments the tool doesn't declare. The other detectors assume this list is empty."""
+    found: list[tuple[int, str, str | None]] = []
+    for ex in examples:
+        tools = {t["name"]: t for t in ex["tools"]}
+        for call in ex["answers"]:
+            if call["name"] not in tools:
+                found.append((ex["id"], call["name"], None))
+                continue
+            declared = tools[call["name"]].get("parameters") or {}
+            found += [(ex["id"], call["name"], a) for a in call["arguments"] if a not in declared]
+    return found
+
+
+def explicit_defaults(examples: Sequence[Example]) -> list[ArgumentIssue]:
+    """Optional arguments the gold call passes at their declared default, or as null. Leaving
+    them out means the same call, but strict exact match counts it as wrong."""
+    return [
+        ArgumentIssue(ex["id"], fn, arg, str(spec.get("type", "")), value)
+        for ex in examples
+        for fn, arg, spec, value in _arguments(ex)
+        if is_optional(spec) and (value is None or ("default" in spec and value == spec["default"]))
+    ]
+
+
 def normalize_query(query: str) -> str:
     return " ".join(query.lower().split())
+
+
+def query_template(query: str) -> str:
+    """The query with quoted strings, numbers and punctuation masked: 'Calculate the factorial
+    of 5.' and 'calculate the factorial of 10' share a template."""
+    q = re.sub(r"'[^']*'|\"[^\"]*\"", " S ", query.lower())
+    q = re.sub(r"\d+(?:\.\d+)?", " N ", q)
+    return " ".join(re.sub(r"[^\w\s]", " ", q).split())
 
 
 def exact_duplicates(examples: Sequence[Example]) -> list[list[int]]:
@@ -125,10 +159,12 @@ def exact_duplicates(examples: Sequence[Example]) -> list[list[int]]:
 
 
 def conflicting_labels(examples: Sequence[Example]) -> list[list[int]]:
-    """Groups of row ids with the same query and the same tools but different answers."""
+    """Groups of row ids with the same query and the same tools (in any order) but different
+    answers."""
     groups: dict[str, list[Example]] = defaultdict(list)
     for ex in examples:
-        groups[json.dumps([normalize_query(ex["query"]), ex["tools"]], sort_keys=True)].append(ex)
+        tools = sorted(ex["tools"], key=lambda t: json.dumps(t, sort_keys=True))
+        groups[json.dumps([normalize_query(ex["query"]), tools], sort_keys=True)].append(ex)
     return [
         [ex["id"] for ex in group]
         for group in groups.values()

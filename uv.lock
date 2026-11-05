@@ -3257,11 +3257,12 @@ dev = [
     { name = "matplotlib" },
     { name = "mypy" },
     { name = "nbconvert" },
-    { name = "nbformat" },
+    { name = "pandas" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "transformers" },
 ]
 
 [package.metadata]
@@ -3278,11 +3279,12 @@ dev = [
     { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "mypy", specifier = ">=2.4.1" },
     { name = "nbconvert", specifier = ">=7.17.2" },
-    { name = "nbformat", specifier = ">=5.11.1" },
+    { name = "pandas", specifier = ">=3.1.1" },
     { name = "pre-commit", specifier = ">=4.7.0" },
     { name = "pytest", specifier = ">=9.2.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "ruff", specifier = ">=0.17.3" },
+    { name = "transformers", specifier = ">=5.20.2" },
 ]
 
 [[package]]

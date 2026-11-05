@@ -1,11 +1,12 @@
 """Statistics and plots behind notebooks/01_dataset.ipynb."""
 
+import math
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from fc_distill.data import Example, to_messages
-from fc_distill.quality import base_type
+from fc_distill.quality import base_type, query_template
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
@@ -89,9 +90,36 @@ def token_lengths(
 def percentiles(
     values: Sequence[float], qs: Sequence[float] = (0.5, 0.9, 0.99)
 ) -> dict[str, float]:
+    """Nearest-rank percentiles (always an observed value) plus the max."""
     ordered = sorted(values)
-    out = {f"p{round(q * 100)}": ordered[min(int(q * len(ordered)), len(ordered) - 1)] for q in qs}
+    out = {f"p{round(q * 100)}": ordered[max(math.ceil(q * len(ordered)) - 1, 0)] for q in qs}
     return out | {"max": ordered[-1]}
+
+
+def ci_half_width(n: int, p: float = 0.5) -> float:
+    """Half-width, in points, of the normal-approximation 95% interval for an accuracy on n rows."""
+    return 100 * 1.96 * math.sqrt(p * (1 - p) / n)
+
+
+class TrainOverlap(TypedDict):
+    rows: int
+    calls_function_unseen_in_train: int
+    query_template_in_train: int
+
+
+def train_overlap(train: Iterable[Example], held_out: Sequence[Example]) -> TrainOverlap:
+    """How much of a held-out split train has already seen: rows calling a function no train
+    answer calls, and rows whose query template (`quality.query_template`) occurs in train."""
+    train = list(train)
+    called = {c["name"] for ex in train for c in ex["answers"]}
+    templates = {query_template(ex["query"]) for ex in train}
+    return {
+        "rows": len(held_out),
+        "calls_function_unseen_in_train": sum(
+            any(c["name"] not in called for c in ex["answers"]) for ex in held_out
+        ),
+        "query_template_in_train": sum(query_template(ex["query"]) in templates for ex in held_out),
+    }
 
 
 def plot_counts(counts: Mapping[Any, int], title: str, xlabel: str) -> "Figure":

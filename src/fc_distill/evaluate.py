@@ -9,18 +9,19 @@ import os
 import time
 from pathlib import Path
 
-from fc_distill.data import SPLITS, load_split, to_messages
+from fc_distill.data import load_split, to_messages
 from fc_distill.scoring import score, summarize
 
 
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--model", required=True, help="HF model id or local path")
-    ap.add_argument("--split", choices=SPLITS[1:], default="validation")
+    ap.add_argument("--split", choices=("validation", "test"), default="validation")
     ap.add_argument("--n", type=int, default=None, help="first n examples (default: all)")
     ap.add_argument("--out", type=Path, default=None, help="default: runs/eval-<model>")
     ap.add_argument("--max-model-len", type=int, default=4096)
-    ap.add_argument("--max-tokens", type=int, default=512)
+    # The longest validation/test gold answer is 521 tokens (notebooks/01_dataset.ipynb, section 4).
+    ap.add_argument("--max-tokens", type=int, default=1024)
     ap.add_argument("--gpu-mem", type=float, default=0.85, help="vLLM gpu_memory_utilization")
     ap.add_argument("--quantization", default=None)
     ap.add_argument(

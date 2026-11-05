@@ -5,8 +5,11 @@ from fc_distill.quality import (
     code_arguments,
     conflicting_labels,
     exact_duplicates,
+    explicit_defaults,
     missing_required,
+    query_template,
     type_mismatches,
+    unknown_calls,
 )
 from tests.factories import make_example
 
@@ -107,3 +110,42 @@ def test_expressions_are_code(value):
     ex = make_example(1, params={"x": {"type": "List[float]"}})
     ex["answers"] = [{"name": "f", "arguments": {"x": value}}]
     assert [i.row_id for i in code_arguments([ex])] == [1]
+
+
+def test_conflicting_labels_ignores_tool_order():
+    t1 = {"name": "f", "description": "", "parameters": {"x": {"type": "int"}}}
+    t2 = {"name": "g", "description": "", "parameters": {}}
+    a, b = make_example(1), make_example(2, answers=[{"name": "f", "arguments": {"x": 2}}])
+    a["tools"], b["tools"] = [t1, t2], [t2, t1]
+    assert conflicting_labels([a, b]) == [[1, 2]]
+
+
+def test_unknown_calls_flags_unoffered_functions_and_undeclared_arguments():
+    exs = [
+        make_example(1, answers=[{"name": "g", "arguments": {}}]),
+        make_example(2, answers=[{"name": "f", "arguments": {"x": 1, "y": 2}}]),
+        make_example(3),
+    ]
+    assert unknown_calls(exs) == [(1, "g", None), (2, "f", "y")]
+
+
+def test_explicit_defaults_flags_default_values_and_nulls_of_optional_params_only():
+    params = {
+        "a": {"type": "str", "default": "game"},
+        "b": {"type": "str, optional"},
+        "c": {"type": "int"},
+    }
+    calls = [
+        {"name": "f", "arguments": {"a": "game", "b": None, "c": 1}},  # a and b flagged
+        {"name": "f", "arguments": {"a": "beta", "c": None}},  # c is required: not flagged
+    ]
+    issues = explicit_defaults([make_example(1, params=params, answers=calls)])
+    assert [(i.argument, i.value) for i in issues] == [("a", "game"), ("b", None)]
+
+
+def test_query_template_masks_numbers_strings_and_punctuation():
+    assert query_template("Calculate the factorial of 5.") == query_template(
+        "calculate the  factorial of 10"
+    )
+    assert query_template("Weather in 'Paris'?") == query_template('weather in "Lisbon"')
+    assert query_template("factorial of 5") != query_template("fibonacci of 5")

@@ -19,7 +19,6 @@ in the form [{{"name": "<tool name>", "arguments": {{<argument name>: <value>, .
 No explanations, no markdown."""
 
 Split = Literal["train", "validation", "test"]
-SPLITS: tuple[Split, ...] = ("train", "validation", "test")
 
 
 class Call(TypedDict):

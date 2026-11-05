@@ -54,3 +54,9 @@ def test_test_split_keeps_code_arguments_but_not_duplicates():
     assert 200 in splits["test"]
     assert 100 not in splits["test"]
     assert report["train_code_arguments_removed"] == 0
+
+
+def test_report_counts_code_rows_kept_in_test():
+    _, report = build_splits(_with_duplicate_and_code_row(), 0, test_size=41, seed=0)
+    assert report["held_out_code_argument_rows"] == {"validation": 0, "test": 1}
+    assert report["held_out_conflicting_label_rows"] == {"validation": 0, "test": 0}
