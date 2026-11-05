@@ -1,6 +1,6 @@
 """Greedy eval of a model on the held-out xLAM split with vLLM.
 
-uv run xlam-eval --model Qwen/Qwen3.5-0.8B --n 500
+uv run fc-eval --model Qwen/Qwen3.5-0.8B --n 500
 """
 
 import argparse
@@ -9,8 +9,8 @@ import os
 import time
 from pathlib import Path
 
-from xlam_distill.data import load_split, to_messages
-from xlam_distill.scoring import score, summarize
+from fc_distill.data import load_split, to_messages
+from fc_distill.scoring import score, summarize
 
 
 def parse_args() -> argparse.Namespace:

@@ -11,7 +11,7 @@ uv sync                          # base + dev tools (CPU only)
 uv sync --extra inference        # + vLLM (GPU)
 uv run pytest                    # tests
 uv run pre-commit run --all-files  # ruff, ruff-format, mypy --strict, uv-lock, file hygiene
-uv run xlam-eval --model <hf-id> --n 500
+uv run fc-eval --model <hf-id> --n 500
 ```
 
 Never `pip install`; add dependencies with `uv add` (or `uv add --optional <extra>` for GPU-only ones)
@@ -19,7 +19,7 @@ so `uv.lock` stays in sync.
 
 ## Code conventions
 
-- Package code lives in `src/xlam_distill/`; tests in `tests/` mirror module names.
+- Package code lives in `src/fc_distill/`; tests in `tests/` mirror module names.
 - Everything must pass `mypy --strict`. Untyped third-party modules are listed in `pyproject.toml`.
 - Tests run on CPU with no network. Code that needs a GPU or a download keeps its heavy imports
   inside the function (see `evaluate.py`) so the rest of the package stays importable in CI.
@@ -39,7 +39,7 @@ so `uv.lock` stays in sync.
 
 ### Issue tracker
 
-Issues and specs live in GitHub Issues on `joaomigueloliveira/ml`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues and specs live in GitHub Issues on `joaomigueloliveira/qwen-function-calling-distillation`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

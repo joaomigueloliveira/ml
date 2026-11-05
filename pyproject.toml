@@ -1,5 +1,5 @@
 [project]
-name = "xlam-distill"
+name = "qwen-function-calling-distillation"
 version = "0.1.0"
 description = "Distilling function calling from a large Qwen3.5 teacher into a small student: SFT, logit KD and on-policy distillation on xLAM-60k."
 readme = "README.md"
@@ -16,7 +16,7 @@ dependencies = [
 inference = ["vllm==0.33.0"]
 
 [project.scripts]
-xlam-eval = "xlam_distill.evaluate:main"
+fc-eval = "fc_distill.evaluate:main"
 
 [dependency-groups]
 dev = [
@@ -30,6 +30,9 @@ dev = [
 [build-system]
 requires = ["uv_build>=0.11.14,<0.12"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "fc_distill"
 
 [tool.ruff]
 line-length = 100
@@ -50,7 +53,7 @@ select = [
 
 [tool.mypy]
 strict = true
-packages = ["xlam_distill"]
+packages = ["fc_distill"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
