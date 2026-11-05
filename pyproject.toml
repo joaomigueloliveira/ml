@@ -1,0 +1,65 @@
+[project]
+name = "xlam-distill"
+version = "0.1.0"
+description = "Distilling function calling from a large Qwen3.5 teacher into a small student: SFT, logit KD and on-policy distillation on xLAM-60k."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "datasets>=5.1.0",
+    "huggingface-hub[cli]>=2.4.0",
+]
+
+[project.optional-dependencies]
+# GPU-only: kept out of the base install so CI and dev tooling stay CPU-only and fast.
+inference = ["vllm==0.33.0"]
+
+[project.scripts]
+xlam-eval = "xlam_distill.evaluate:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "pre-commit>=4.7.0",
+    "pytest>=9.2.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.17.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.14,<0.12"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # pyflakes
+    "I",       # isort
+    "N",       # pep8-naming
+    "UP",      # pyupgrade
+    "B",       # bugbear
+    "SIM",     # simplify
+    "PT",      # pytest style
+    "RUF",     # ruff-specific
+]
+
+[tool.mypy]
+strict = true
+packages = ["xlam_distill"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+# Treated as untyped everywhere: vllm is a GPU-only extra that CI doesn't install, so skipping it
+# keeps local and CI type checks identical.
+module = ["datasets.*", "vllm.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-markers", "--strict-config"]

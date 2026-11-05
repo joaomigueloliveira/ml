@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+build/
+dist/
+
+# Tooling caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Experiment outputs (model weights, predictions, logs) — results worth keeping go in results/
+runs/
+checkpoints/
+wandb/
+
+# Secrets
+.env
