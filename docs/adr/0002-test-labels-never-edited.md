@@ -16,7 +16,8 @@ anyone else's.
   or *label wrong*. **`test-clean`** is test minus the ambiguous and wrong rows.
 - Every result is reported on both test and `test-clean`.
 - Train is cleaned only by documented filters that remove rows (unparseable, inconsistent, duplicated,
-  leaking into validation/test). No train label is rewritten either.
+  leaking into validation/test, or holding Python code where a value is declared). No train label is
+  rewritten either.
 
 ## Consequences
 

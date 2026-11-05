@@ -66,6 +66,11 @@ def _call_key(call: Call) -> Hashable:
     return (call["name"], _canon(call["arguments"]))
 
 
+def call_multiset(calls: Sequence[Call]) -> frozenset[tuple[Hashable, int]]:
+    """Hashable form of a call list that `exact` treats as equal: order-insensitive, 5 == 5.0."""
+    return frozenset(Counter(map(_call_key, calls)).items())
+
+
 def _arg_triples(calls: Sequence[Call]) -> Counter[Hashable]:
     return Counter((c["name"], k, _canon(v)) for c in calls for k, v in c["arguments"].items())
 
@@ -76,7 +81,7 @@ def score(prediction: str, gold: Sequence[Call]) -> Score:
     if calls is None:
         return {"parse_ok": False, "exact": False, "names": False, "arg_f1": 0.0}
 
-    exact = Counter(map(_call_key, calls)) == Counter(map(_call_key, gold))
+    exact = call_multiset(calls) == call_multiset(gold)
     names = Counter(c["name"] for c in calls) == Counter(c["name"] for c in gold)
 
     pred_args, gold_args = _arg_triples(calls), _arg_triples(gold)

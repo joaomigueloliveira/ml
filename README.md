@@ -22,8 +22,9 @@ Scoring is deterministic: no LLM judge.
 | `names` | the right functions were called |
 | `arg_f1` | F1 over `(function, argument, value)` triples, as partial credit |
 
-A fixed 1,000-row eval split ([`data/splits.json`](data/splits.json), seed 0) is held out from all
-training.
+Splits: train (56,392), validation (1,000) and test (2,000), grouped so no query text appears in
+two splits, with train filtered of duplicates, code-valued arguments and contradicting labels. How
+and why: [`notebooks/01_dataset.ipynb`](notebooks/01_dataset.ipynb) and [`docs/adr/`](docs/adr/).
 
 ## Results
 
@@ -36,7 +37,7 @@ gated dataset (accept the terms on the dataset page, then `uv run hf auth login`
 
 ```bash
 uv sync --extra inference         # base + vLLM
-uv run fc-eval --model Qwen/Qwen3.5-0.8B --n 500
+uv run fc-eval --model Qwen/Qwen3.5-0.8B --split validation
 ```
 
 ## Development
@@ -45,6 +46,9 @@ uv run fc-eval --model Qwen/Qwen3.5-0.8B --n 500
 uv sync                           # base + dev tools, no GPU needed
 uv run pre-commit install
 uv run pytest
+
+# re-run the dataset notebook (writes data/splits.json; needs the HF login above)
+uv run jupyter nbconvert --to notebook --execute --inplace notebooks/01_dataset.ipynb
 ```
 
 Linting and formatting use ruff, type checking uses mypy (strict), and both run in pre-commit and CI.
@@ -53,11 +57,15 @@ Linting and formatting use ruff, type checking uses mypy (strict), and both run 
 
 ```
 src/fc_distill/
-  data.py       dataset loading, fixed split, prompt
+  data.py       dataset loading (pinned revision), committed splits, prompt
+  quality.py    detectors for label and schema problems
+  splits.py     train / validation / test construction and train filters
+  eda.py        statistics and plots for the dataset notebook
   scoring.py    strict, deterministic scorer
   evaluate.py   vLLM eval CLI (fc-eval)
+notebooks/      01_dataset.ipynb: the dataset story and the split
 tests/          unit tests (CPU only)
-data/           committed split file
+data/           committed split ids
 ```
 
 ## License
