@@ -22,7 +22,7 @@ Left out: *live* (user-contributed queries with messier specs, worth adding late
 (the right answer is no call, which xLAM never teaches), multi-turn (out of scope in #2), and the
 Java, JavaScript, REST and SQL categories (other output formats).
 
-Only 46 of the 1,000 rows call a function whose name also appears in xLAM train (24 of BFCL's 769
+Only 44 of the 1,000 rows call a function that some xLAM train answer also calls (21 of BFCL's 769
 names). Several of those names have different specs in BFCL. `fc-eval` reports this count with every
 run.
 
@@ -47,13 +47,17 @@ run.
 | `names` | the right functions, each the right number of times |
 | `parse_ok` | as on xLAM |
 
+BFCL has no `lenient_exact`, because its answers already mark which arguments may be left out. It has
+no `arg_f1` either, because an argument has a list of acceptable values rather than one gold value.
+
 `bfcl_exact` reimplements only BFCL's string comparison, not its whole checker. BFCL also type-checks
 each value against the declared type, which we don't. Our numbers are therefore close to the
 leaderboard's but not identical to it, and are not reported as leaderboard scores.
 
 ## Reporting
 
-- Each 95% interval is a half-width, in the same unit as the score (`exact_ci`).
+- Each score comes with its 95% interval as `[low, high]` in the same unit (`exact_ci`), a Wilson
+  interval for right/wrong metrics.
 - ADR 0001 reports a slice on its own only with at least 300 rows. So results are given **overall**,
   for **simple** (400), and for **multiple + parallel + parallel_multiple** merged (600). The four
   categories are listed too, with the 200-row ones marked `below_min_rows`.

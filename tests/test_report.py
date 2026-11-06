@@ -5,27 +5,8 @@ from typing import Any
 import pytest
 
 from fc_distill import report
-from fc_distill.report import MODELS, build, mcnemar, render
+from fc_distill.report import MODELS, build, render
 from tests.factories import make_example
-
-
-def test_mcnemar_counts_discordant_pairs_and_exact_p():
-    a = [True, True, False, False, False, False, False, True]
-    b = [True, False, True, True, True, True, True, True]
-    out = mcnemar(a, b)
-    assert (out["only_a_right"], out["only_b_right"], out["n"]) == (1, 5, 8)
-    # binomial(6, 0.5): P(X <= 1) = 7/64, two-sided 14/64
-    assert out["p"] == pytest.approx(14 / 64)
-
-
-def test_mcnemar_is_one_when_nothing_differs_or_split_evenly():
-    assert mcnemar([True, False], [True, False])["p"] == 1.0
-    assert mcnemar([True, False], [False, True])["p"] == 1.0
-
-
-def test_mcnemar_rejects_unpaired_input():
-    with pytest.raises(ValueError, match="same length"):
-        mcnemar([True], [True, False])
 
 
 def _write_run(path: Path, records: list[dict[str, Any]], summary: dict[str, Any]) -> None:
@@ -36,7 +17,7 @@ def _write_run(path: Path, records: list[dict[str, Any]], summary: dict[str, Any
 
 def _bfcl_block(n: int) -> dict[str, Any]:
     keys = ("parse_ok", "exact", "bfcl_exact", "names")
-    block = {"n": n} | {k: 0.5 for k in keys} | {f"{k}_ci": 0.1 for k in keys}
+    block = {"n": n} | {k: 0.5 for k in keys} | {f"{k}_ci": [0.4, 0.6] for k in keys}
     return block
 
 
@@ -49,7 +30,7 @@ def test_build_scores_test_clean_from_the_test_run_and_renders(
     splits.write_text(json.dumps({"test-clean": [0, 1, 2]}))
     metrics = ("parse_ok", "exact", "lenient_exact", "names", "arg_f1")
     for k, model in enumerate(MODELS):
-        tag = model.replace("/", "_")
+        tag = model.id.replace("/", "_")
         # model k gets rows 0..k right
         records = [{"id": i} | {m: float(i <= k) for m in metrics} for i in range(4)]
         for r in records:

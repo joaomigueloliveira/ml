@@ -2,7 +2,14 @@ import json
 import random
 from typing import Any
 
-from fc_distill.scoring import parse_calls, score
+from fc_distill.scoring import (
+    canon,
+    is_default,
+    lenient_match,
+    parse_calls,
+    score,
+    without_defaults,
+)
 
 WEATHER = {"name": "get_weather", "arguments": {"city": "Lisbon", "days": 3}}
 TIME = {"name": "get_time", "arguments": {"tz": "Europe/Lisbon"}}
@@ -128,7 +135,43 @@ def test_lenient_is_never_below_strict():
     def draw() -> dict[str, Any]:
         return {k: rng.choice(v) for k, v in values.items() if rng.random() < 0.6}
 
+    # lenient_match itself (not score(), which ORs it with exact) must accept every exact pair
     for _ in range(500):
-        pred, gold = draw(), draw()
-        exact, lenient = _lenient(_search(**pred), gold)
-        assert lenient or not exact
+        args = draw()
+        call: Any = [{"name": "search", "arguments": args}]
+        same: Any = [{"name": "search", "arguments": json.loads(json.dumps(args))}]
+        assert lenient_match(call, same, TOOLS)
+
+
+def test_without_defaults_drops_only_optional_arguments_at_their_default_or_null():
+    params = {
+        "x": {"type": "int"},
+        "unit": {"type": "str, optional", "default": "km"},
+        "note": {"type": "str, optional"},
+        "q": {"type": "str", "default": "google.com"},
+    }
+    tools = [{"name": "f", "parameters": params}]
+    calls = [{"name": "f", "arguments": {"x": None, "unit": "km", "note": None, "q": "google.com"}}]
+    assert without_defaults(calls, tools) == [
+        {"name": "f", "arguments": {"x": None, "q": "google.com"}}
+    ]  # type: ignore[arg-type]
+
+
+def test_canon_keeps_large_integers_exact():
+    big = 2**53
+    assert canon(big) != canon(big + 1)
+    assert canon(5) == canon(5.0)
+    assert canon(True) != canon(1)
+    assert canon(0.5) == canon(0.5)
+
+
+def test_is_default_bool_and_string_forms():
+    one = {"type": "int, optional", "default": 1}
+    assert is_default(one, 1)
+    assert not is_default(one, True)
+    flag = {"type": "bool, optional", "default": "True"}
+    assert is_default(flag, True)
+    assert not is_default(flag, False)
+    lower = {"type": "bool, optional", "default": "true"}
+    assert is_default(lower, True)
+    assert not is_default({"type": "bool", "default": "true"}, True)  # required

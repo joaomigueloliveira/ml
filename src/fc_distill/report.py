@@ -10,69 +10,46 @@ decoding isn't perfectly deterministic.
 import argparse
 import json
 from collections.abc import Mapping, Sequence
-from fractions import Fraction
-from math import comb
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
+from fc_distill import bfcl
 from fc_distill.data import DEFAULT_SPLITS_PATH, Example, load_split
+from fc_distill.evaluate import read_run
 from fc_distill.scoring import METRICS
-from fc_distill.slices import mean_ci, slice_scores
+from fc_distill.slices import slice_scores
+from fc_distill.stats import mcnemar, metric_block
 
-MODELS = ("Qwen/Qwen3.5-0.8B", "Qwen/Qwen3.5-2B", "Qwen/Qwen3.5-4B")
-SHORT = {"Qwen/Qwen3.5-0.8B": "0.8B", "Qwen/Qwen3.5-2B": "2B", "Qwen/Qwen3.5-4B": "4B"}
-ROLE = {
-    "Qwen/Qwen3.5-0.8B": "student",
-    "Qwen/Qwen3.5-2B": "teacher",
-    "Qwen/Qwen3.5-4B": "reference",
-}
-# (a, b, eval): paired comparisons reported with McNemar's test. 0.8B vs 2B on test-clean is the
-# one #2's success criterion builds on.
+
+class Model(NamedTuple):
+    id: str
+    short: str
+    role: str
+
+
+STUDENT = Model("Qwen/Qwen3.5-0.8B", "0.8B", "student")
+TEACHER = Model("Qwen/Qwen3.5-2B", "2B", "teacher")
+REFERENCE = Model("Qwen/Qwen3.5-4B", "4B", "reference")
+MODELS = (STUDENT, TEACHER, REFERENCE)
+# (a, b, eval): paired comparisons reported with McNemar's test.
 COMPARISONS = (
-    ("Qwen/Qwen3.5-0.8B", "Qwen/Qwen3.5-2B", "test-clean"),
-    ("Qwen/Qwen3.5-0.8B", "Qwen/Qwen3.5-2B", "test"),
-    ("Qwen/Qwen3.5-0.8B", "Qwen/Qwen3.5-2B", "bfcl"),
-    ("Qwen/Qwen3.5-2B", "Qwen/Qwen3.5-4B", "test-clean"),
-    ("Qwen/Qwen3.5-2B", "Qwen/Qwen3.5-4B", "bfcl"),
+    (STUDENT, TEACHER, "test-clean"),
+    (STUDENT, TEACHER, "test"),
+    (STUDENT, TEACHER, "bfcl"),
+    (TEACHER, REFERENCE, "test-clean"),
+    (TEACHER, REFERENCE, "test"),
+    (TEACHER, REFERENCE, "bfcl"),
 )
 DEFAULT_JSON = Path("results/baselines.json")
 DEFAULT_MD = Path("results/baselines.md")
 
 
-def mcnemar(a: Sequence[bool], b: Sequence[bool]) -> dict[str, Any]:
-    """Exact two-sided McNemar test on paired right/wrong outcomes: a binomial test on the rows
-    where exactly one of the two is right."""
-    if len(a) != len(b):
-        raise ValueError("paired outcomes must have the same length")
-    only_a = sum(x and not y for x, y in zip(a, b, strict=True))
-    only_b = sum(y and not x for x, y in zip(a, b, strict=True))
-    n = only_a + only_b
-    if n == 0:
-        p = 1.0
-    else:
-        tail = sum(Fraction(comb(n, k), 2**n) for k in range(min(only_a, only_b) + 1))
-        p = float(min(Fraction(1), 2 * tail))
-    return {"n": len(a), "only_a_right": only_a, "only_b_right": only_b, "p": p}
-
-
-def read_run(run_dir: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    summary = json.loads((run_dir / "summary.json").read_text())
-    with (run_dir / "predictions.jsonl").open() as f:
-        records = [json.loads(line) for line in f]
-    return summary, records
-
-
 def xlam_block(
     records: Sequence[Mapping[str, Any]], examples: Mapping[int, Example]
 ) -> dict[str, Any]:
-    """Every metric with its 95% interval half-width, and the slices, for a set of scored rows."""
-    block: dict[str, Any] = {"n": len(records)}
-    for m in METRICS:
-        mean, ci = mean_ci([float(r[m]) for r in records])
-        block[m], block[f"{m}_ci"] = round(mean, 4), round(ci, 4)
+    """Every metric with its 95% interval, and the slices, for a set of scored rows."""
     rows = [examples[r["id"]] for r in records]
-    block["slices"] = slice_scores(rows, records, METRICS)
-    return block
+    return metric_block(records, METRICS) | {"slices": slice_scores(rows, records, METRICS)}
 
 
 def build(runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH) -> dict[str, Any]:
@@ -81,12 +58,12 @@ def build(runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH) -> dict[str, Any]
     models: dict[str, Any] = {}
     exact: dict[tuple[str, str], dict[Any, bool]] = {}
     for model in MODELS:
-        tag = model.replace("/", "_")
+        tag = model.id.replace("/", "_")
         t_summary, t_records = read_run(runs / f"eval-test-{tag}")
         b_summary, b_records = read_run(runs / f"eval-bfcl-{tag}")
         clean_records = [r for r in t_records if r["id"] in clean]
-        models[model] = {
-            "role": ROLE[model],
+        models[model.id] = {
+            "role": model.role,
             "test": xlam_block(t_records, test) | {"seconds": t_summary["seconds"]},
             "test-clean": xlam_block(clean_records, test),
             "bfcl": {k: b_summary[k] for k in ("overall", "slices", "categories")}
@@ -101,106 +78,184 @@ def build(runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH) -> dict[str, Any]
                 "bfcl": b_summary.get("provenance"),
             },
         }
-        exact[model, "test"] = {r["id"]: r["exact"] for r in t_records}
-        exact[model, "test-clean"] = {r["id"]: r["exact"] for r in clean_records}
-        exact[model, "bfcl"] = {r["id"]: r["exact"] for r in b_records}
+        exact[model.id, "test"] = {r["id"]: r["exact"] for r in t_records}
+        exact[model.id, "test-clean"] = {r["id"]: r["exact"] for r in clean_records}
+        exact[model.id, "bfcl"] = {r["id"]: r["exact"] for r in b_records}
     comparisons = []
     for a, b, split in COMPARISONS:
-        ids = sorted(exact[a, split], key=str)
-        result = mcnemar([exact[a, split][i] for i in ids], [exact[b, split][i] for i in ids])
-        comparisons.append({"a": a, "b": b, "eval": split} | result)
+        ids = sorted(exact[a.id, split], key=str)
+        result = mcnemar([exact[a.id, split][i] for i in ids], [exact[b.id, split][i] for i in ids])
+        comparisons.append({"a": a.id, "b": b.id, "eval": split} | result)
     return {"models": models, "mcnemar": comparisons}
 
 
-def _pct(x: float | None, ci: float | None = None) -> str:
+def _pct(block: Mapping[str, Any], metric: str) -> str:
+    x = block.get(metric)
     if x is None:
         return "-"
-    return f"{100 * x:.1f}" + (f" ± {100 * ci:.1f}" if ci is not None else "")
+    low, high = block[f"{metric}_ci"]
+    return f"{100 * x:.1f} [{100 * low:.1f}, {100 * high:.1f}]"
 
 
 def _p(p: float) -> str:
     return "< 0.0001" if p < 1e-4 else f"{p:.4f}"
 
 
+def _table(head: Sequence[str], align: str, rows: Sequence[Sequence[str]]) -> list[str]:
+    return [
+        "| " + " | ".join(head) + " |",
+        "|" + "|".join(align.split()) + "|",
+        *("| " + " | ".join(r) + " |" for r in rows),
+    ]
+
+
+def _headline(models: Mapping[str, Any]) -> list[str]:
+    rows = [
+        [
+            m.id,
+            m.role,
+            _pct(models[m.id]["test"], "exact"),
+            _pct(models[m.id]["test-clean"], "exact"),
+            _pct(models[m.id]["bfcl"]["overall"], "exact"),
+            _pct(models[m.id]["test-clean"], "lenient_exact"),
+        ]
+        for m in MODELS
+    ]
+    head = ["Model", "Role", "Test", "Test-clean", "BFCL", "Test-clean, lenient"]
+    return _table(head, "--- --- ---: ---: ---: ---:", rows)
+
+
+def _starting_line(models: Mapping[str, Any]) -> list[str]:
+    s = models[STUDENT.id]["test-clean"]["exact"]
+    t = models[TEACHER.id]["test-clean"]["exact"]
+    gap = t - s
+    return [
+        f"On test-clean the student scores **{100 * s:.1f}** and the teacher **{100 * t:.1f}**: "
+        f"a gap of **{100 * gap:.1f} points**. #2's success criterion is to recover at least half "
+        f"of it, a distilled 0.8B at **{100 * (s + gap / 2):.1f}** or better on test-clean, with "
+        "the recovered fraction significant at p < 0.05. How that is tested (a paired interval on "
+        "the recovered fraction, and against which student baseline) is settled in the Phase 2 "
+        "design review.",
+    ]
+
+
+def _mcnemar_table(comparisons: Sequence[Mapping[str, Any]]) -> list[str]:
+    short = {m.id: m.short for m in MODELS}
+    rows = [
+        [
+            short[c["a"]],
+            short[c["b"]],
+            c["eval"],
+            f"{c['n']:,}",
+            str(c["only_a_right"]),
+            str(c["only_b_right"]),
+            _p(c["p"]),
+        ]
+        for c in comparisons
+    ]
+    head = ["A", "B", "Eval", "Rows", "Only A right", "Only B right", "p"]
+    return _table(head, "--- --- --- ---: ---: ---: ---:", rows)
+
+
+def _metrics_table(blocks: Mapping[str, Mapping[str, Any]], metrics: Sequence[str]) -> list[str]:
+    rows = [
+        [m.short, f"{blocks[m.id]['n']:,}", *(_pct(blocks[m.id], x) for x in metrics)]
+        for m in MODELS
+    ]
+    return _table(["Model", "Rows", *metrics], "--- ---: " + "---: " * len(metrics), rows)
+
+
+def _slices_table(models: Mapping[str, Any]) -> list[str]:
+    slices = {m.id: models[m.id]["test-clean"]["slices"] for m in MODELS}
+    rows = []
+    for dim, buckets in slices[STUDENT.id].items():
+        for bucket, info in buckets.items():
+            cells = [_pct(slices[m.id][dim][bucket], "exact") for m in MODELS]
+            s, t = (slices[m.id][dim][bucket]["exact"] for m in (STUDENT, TEACHER))
+            diff = "-" if s is None or t is None else f"{100 * (t - s):.1f}"
+            star = "*" if info["too_small"] else ""
+            rows.append([dim, bucket + star, f"{info['n']:,}", *cells, diff])
+    head = ["Slice", "Bucket", "Rows", *(m.short for m in MODELS), "2B - 0.8B"]
+    return _table(head, "--- --- ---: " + "---: " * (len(MODELS) + 1), rows)
+
+
+def _bfcl_groups(models: Mapping[str, Any]) -> list[str]:
+    rows = [
+        [
+            m.short,
+            _pct(models[m.id]["bfcl"]["slices"]["simple"], "exact"),
+            _pct(models[m.id]["bfcl"]["slices"]["multiple_parallel"], "exact"),
+        ]
+        for m in MODELS
+    ]
+    return _table(["Model", "simple", "multiple + parallel"], "--- ---: ---:", rows)
+
+
+def _provenance(models: Mapping[str, Any]) -> list[str]:
+    rows = []
+    for m in MODELS:
+        r = models[m.id]
+        prov = r["provenance"]["test"] or {}
+        commit = (prov.get("commit") or "-")[:7] + (" (dirty)" if prov.get("dirty") else "")
+        rows.append(
+            [
+                m.short,
+                str(r["test"]["seconds"]),
+                str(r["bfcl"]["seconds"]),
+                str(prov.get("max_num_seqs") or "default"),
+                f"`{(prov.get('model_revision') or '-')[:12]}`",
+                f"`{commit}`",
+                str(prov.get("vllm") or "-"),
+            ]
+        )
+    head = ["Model", "Test (s)", "BFCL (s)", "max_num_seqs", "Model revision", "Commit", "vLLM"]
+    return _table(head, "--- ---: ---: ---: --- --- ---", rows)
+
+
 def render(data: Mapping[str, Any]) -> str:
     models = data["models"]
-    student, teacher = models["Qwen/Qwen3.5-0.8B"], models["Qwen/Qwen3.5-2B"]
-    s_clean, t_clean = student["test-clean"]["exact"], teacher["test-clean"]["exact"]
-    gap = t_clean - s_clean
+    n_clean = models[STUDENT.id]["test-clean"]["n"]
+    rows_seen = models[STUDENT.id]["bfcl"]["rows_calling_a_train_function_name"]
     out = [
         "# Baselines",
         "",
         "Issue #10. Generated by `uv run fc-report` from the runs in `runs/`; numbers: "
         "[`baselines.json`](baselines.json). Greedy decoding, thinking off (ADR 0003). Every "
-        "number is a percentage with its 95% interval half-width. Test-clean is scored from the "
-        f"test runs, restricted to its {student['test-clean']['n']:,} rows.",
+        "number is a percentage with its 95% interval (Wilson for right/wrong metrics). "
+        f"Test-clean is scored from the test runs, restricted to its {n_clean:,} rows.",
         "",
         "## Headline",
         "",
-        "| Model | Role | Test | Test-clean | BFCL | Test-clean, lenient |",
-        "|---|---|---:|---:|---:|---:|",
-    ]
-    for model, r in models.items():
-        out.append(
-            f"| {model} | {r['role']} | {_pct(r['test']['exact'], r['test']['exact_ci'])} "
-            f"| {_pct(r['test-clean']['exact'], r['test-clean']['exact_ci'])} "
-            f"| {_pct(r['bfcl']['overall']['exact'], r['bfcl']['overall']['exact_ci'])} "
-            f"| {_pct(r['test-clean']['lenient_exact'], r['test-clean']['lenient_exact_ci'])} |"
-        )
-    out += [
+        *_headline(models),
         "",
         "Strict exact match is the headline metric. Lenient exact also accepts optional arguments "
         "at their default (#15).",
         "",
         "## Starting line for Phase 2",
         "",
-        f"On test-clean the student scores **{_pct(s_clean)}** and the teacher "
-        f"**{_pct(t_clean)}**: a gap of **{100 * gap:.1f} points**. #2's success criterion, "
-        f"recovering at least half of it, means a distilled 0.8B at **{_pct(s_clean + gap / 2)}** "
-        "or better on test-clean, significant at p < 0.05 by McNemar against the baseline "
-        "student, and also improving on BFCL.",
+        *_starting_line(models),
         "",
         "## Paired comparisons",
         "",
         "Exact McNemar test on strict exact match, row by row on the same eval.",
         "",
-        "| A | B | Eval | Rows | Only A right | Only B right | p |",
-        "|---|---|---|---:|---:|---:|---:|",
+        *_mcnemar_table(data["mcnemar"]),
+        "",
+        "## All metrics",
     ]
-    for c in data["mcnemar"]:
-        out.append(
-            f"| {SHORT[c['a']]} | {SHORT[c['b']]} | {c['eval']} | {c['n']:,} "
-            f"| {c['only_a_right']} | {c['only_b_right']} | {_p(c['p'])} |"
-        )
-    out += ["", "## All metrics", ""]
-    xlam_metrics = ("parse_ok", "exact", "lenient_exact", "names", "arg_f1")
     for split in ("test", "test-clean"):
-        out += [
-            f"### {split}",
-            "",
-            "| Model | Rows | " + " | ".join(xlam_metrics) + " |",
-            "|---|---:|" + "---:|" * len(xlam_metrics),
-        ]
-        for model, r in models.items():
-            b = r[split]
-            cells = " | ".join(_pct(b[m], b[f"{m}_ci"]) for m in xlam_metrics)
-            out.append(f"| {SHORT[model]} | {b['n']:,} | {cells} |")
-        out.append("")
-    bfcl_metrics = ("parse_ok", "exact", "bfcl_exact", "names")
+        blocks = {m.id: models[m.id][split] for m in MODELS}
+        out += ["", f"### {split}", "", *_metrics_table(blocks, METRICS)]
+    bfcl_blocks = {m.id: models[m.id]["bfcl"]["overall"] for m in MODELS}
     out += [
+        "",
         "### BFCL (unseen tools)",
         "",
-        "| Model | Rows | " + " | ".join(bfcl_metrics) + " |",
-        "|---|---:|" + "---:|" * len(bfcl_metrics),
-    ]
-    for model, r in models.items():
-        b = r["bfcl"]["overall"]
-        cells = " | ".join(_pct(b[m], b[f"{m}_ci"]) for m in bfcl_metrics)
-        out.append(f"| {SHORT[model]} | {b['n']:,} | {cells} |")
-    rows_seen = next(iter(models.values()))["bfcl"]["rows_calling_a_train_function_name"]
-    out += [
+        *_metrics_table(bfcl_blocks, bfcl.METRICS),
         "",
-        f"{rows_seen} of the BFCL rows call a function name that also appears in xLAM train. "
+        f"{rows_seen} of the BFCL rows call a function name that some xLAM train answer calls. "
+        "BFCL has no `lenient_exact` (its answers already mark which arguments may be left out) "
+        "and no `arg_f1` (its acceptable-value lists have no single gold value per argument). "
         "`bfcl_exact` reimplements BFCL's string normalisation only; see "
         "[`docs/bfcl.md`](../docs/bfcl.md).",
         "",
@@ -208,59 +263,23 @@ def render(data: Mapping[str, Any]) -> str:
         "",
         "Test-clean. Buckets under 300 rows are marked *.",
         "",
-        "| Slice | Bucket | Rows | " + " | ".join(SHORT[m] for m in models) + " | 2B - 0.8B |",
-        "|---|---|---:|" + "---:|" * len(models) + "---:|",
-    ]
-    first = next(iter(models.values()))["test-clean"]["slices"]
-    for dim, buckets in first.items():
-        for bucket, info in buckets.items():
-            per_model = [
-                _pct(
-                    r["test-clean"]["slices"][dim][bucket]["exact"],
-                    r["test-clean"]["slices"][dim][bucket]["exact_ci"],
-                )
-                for r in models.values()
-            ]
-            sb = student["test-clean"]["slices"][dim][bucket]["exact"]
-            tb = teacher["test-clean"]["slices"][dim][bucket]["exact"]
-            diff = "-" if sb is None or tb is None else f"{100 * (tb - sb):.1f}"
-            star = "*" if info["too_small"] else ""
-            head = f"| {dim} | {bucket}{star} | {info['n']:,} | "
-            out.append(head + " | ".join(per_model) + f" | {diff} |")
-    out += [
+        *_slices_table(models),
         "",
         "BFCL, by category group (simple has 400 rows; the other three are merged to 600, "
         "ADR 0001):",
         "",
-        "| Model | simple | multiple + parallel |",
-        "|---|---:|---:|",
-    ]
-    for model, r in models.items():
-        s = r["bfcl"]["slices"]
-        out.append(
-            f"| {SHORT[model]} | {_pct(s['simple']['exact'], s['simple']['exact_ci'])} "
-            f"| {_pct(s['multiple_parallel']['exact'], s['multiple_parallel']['exact_ci'])} |"
-        )
-    out += [
+        *_bfcl_groups(models),
         "",
         "## Cost and provenance",
         "",
         "Wall-clock time for the full eval on one RTX 3060 (12 GB), vLLM, all rows in one batch. "
         "The 4B runs cap concurrency (`max_num_seqs` 24) to fit in memory, so its time is not "
-        "comparable with the others.",
+        "comparable with the others. Later runs compared against these must keep the vLLM "
+        "version and `max_num_seqs` fixed, because batched greedy decoding is not perfectly "
+        "deterministic.",
         "",
-        "| Model | Test (s) | BFCL (s) | max_num_seqs | Model revision | Commit |",
-        "|---|---:|---:|---:|---|---|",
+        *_provenance(models),
     ]
-    for model, r in models.items():
-        prov = r["provenance"]["test"] or {}
-        rev = (prov.get("model_revision") or "-")[:12]
-        commit = (prov.get("commit") or "-")[:7] + (" (dirty)" if prov.get("dirty") else "")
-        seqs = prov.get("max_num_seqs") or "default"
-        out.append(
-            f"| {SHORT[model]} | {r['test']['seconds']} | {r['bfcl']['seconds']} | {seqs} "
-            f"| `{rev}` | `{commit}` |"
-        )
     return "\n".join(out) + "\n"
 
 

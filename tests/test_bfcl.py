@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 
 from fc_distill.bfcl import (
-    BfclExample,
+    BfclRow,
     PossibleCall,
     calls_match,
     normalize_string,
@@ -140,7 +140,7 @@ def test_parse_row_takes_the_single_user_turn():
         parse_row(row, [AREA], "simple")
 
 
-def _ex(i: int, cat: Any, name: str = "area") -> BfclExample:
+def _ex(i: int, cat: Any, name: str = "area") -> BfclRow:
     return {"id": f"{cat}_{i}", "category": cat, "query": "", "tools": [], "possible": [{name: {}}]}
 
 

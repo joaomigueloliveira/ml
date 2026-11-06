@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Any, Literal, TypedDict, get_args
 
 from fc_distill.data import Call, Message, prompt_messages
-from fc_distill.eda import ci_half_width
-from fc_distill.scoring import _canon, parse_calls
+from fc_distill.scoring import canon, parse_calls
+from fc_distill.stats import MIN_ROWS, metric_block
 
 REPO = "gorilla-llm/Berkeley-Function-Calling-Leaderboard"
 REVISION = "61fc0608cfd831fcfbbaa676ebdfef0ed963eeda"
@@ -36,7 +36,7 @@ _TYPES = {
 PossibleCall = dict[str, dict[str, list[Any]]]
 
 
-class BfclExample(TypedDict):
+class BfclRow(TypedDict):
     id: str
     category: Category
     query: str
@@ -51,7 +51,7 @@ class BfclScore(TypedDict):
     names: bool
 
 
-def load(categories: Iterable[Category] = CATEGORIES) -> list[BfclExample]:
+def load(categories: Iterable[Category] = CATEGORIES) -> list[BfclRow]:
     """Every row of the given categories at the pinned revision, tools converted to xLAM style."""
     from huggingface_hub import hf_hub_download
 
@@ -59,14 +59,14 @@ def load(categories: Iterable[Category] = CATEGORIES) -> list[BfclExample]:
         path = hf_hub_download(REPO, name, repo_type="dataset", revision=REVISION)
         return [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
 
-    out: list[BfclExample] = []
+    out: list[BfclRow] = []
     for cat in categories:
         answers = {r["id"]: r["ground_truth"] for r in read(f"possible_answer/BFCL_v3_{cat}.json")}
         out += [parse_row(r, answers[r["id"]], cat) for r in read(f"BFCL_v3_{cat}.json")]
     return out
 
 
-def parse_row(row: Mapping[str, Any], possible: list[PossibleCall], cat: Category) -> BfclExample:
+def parse_row(row: Mapping[str, Any], possible: list[PossibleCall], cat: Category) -> BfclRow:
     turns = row["question"]
     if len(turns) != 1 or len(turns[0]) != 1 or turns[0][0]["role"] != "user":
         raise ValueError(f"{row['id']}: expected a single user message")
@@ -79,7 +79,7 @@ def parse_row(row: Mapping[str, Any], possible: list[PossibleCall], cat: Categor
     }
 
 
-def to_messages(ex: BfclExample) -> list[Message]:
+def to_messages(ex: BfclRow) -> list[Message]:
     return prompt_messages(ex["query"], ex["tools"])
 
 
@@ -149,7 +149,7 @@ def _value_ok(value: Any, acceptable: Any, normalize: bool) -> bool:
         )
     if normalize and isinstance(value, str) and isinstance(acceptable, str):
         return normalize_string(value) == normalize_string(acceptable)
-    return _canon(value) == _canon(acceptable)
+    return bool(canon(value) == canon(acceptable))
 
 
 def _args_ok(args: Mapping[str, Any], possible: Mapping[str, list[Any]], normalize: bool) -> bool:
@@ -212,23 +212,16 @@ SLICES: dict[str, tuple[Category, ...]] = {
 
 
 def _block(scores: Sequence[BfclScore]) -> dict[str, Any]:
-    n = len(scores)
-    out: dict[str, Any] = {"n": n}
-    for m in METRICS:
-        p = sum(bool(s[m]) for s in scores) / n if n else 0.0
-        out[m] = round(p, 4)
-        # ci_half_width is in points; keep the interval in the same unit as the score.
-        out[f"{m}_ci"] = round(ci_half_width(n, p) / 100, 4) if n else None
-    return out
+    return metric_block(scores, METRICS)
 
 
-def summarize(examples: Sequence[BfclExample], scores: Sequence[BfclScore]) -> dict[str, Any]:
+def summarize(examples: Sequence[BfclRow], scores: Sequence[BfclScore]) -> dict[str, Any]:
     """Overall and per-slice metrics with 95% interval half-widths. Each category is listed too,
     marked as below the 300-row minimum when it is."""
     pairs = list(zip(examples, scores, strict=True))
     per_cat = {
         cat: _block([s for ex, s in pairs if ex["category"] == cat])
-        | {"below_min_rows": sum(ex["category"] == cat for ex in examples) < 300}
+        | {"below_min_rows": sum(ex["category"] == cat for ex in examples) < MIN_ROWS}
         for cat in CATEGORIES
         if any(ex["category"] == cat for ex in examples)
     }
@@ -242,10 +235,10 @@ def summarize(examples: Sequence[BfclExample], scores: Sequence[BfclScore]) -> d
     }
 
 
-def seen_in_train(examples: Iterable[BfclExample], train_tool_names: set[str]) -> list[str]:
-    """Ids of rows whose gold answer calls a function name that also appears in xLAM train."""
+def seen_in_train(examples: Iterable[BfclRow], train_called_names: set[str]) -> list[str]:
+    """Ids of rows whose gold answer calls a function name that some xLAM train answer calls."""
     return [
         ex["id"]
         for ex in examples
-        if any(next(iter(g)) in train_tool_names for g in ex["possible"])
+        if any(next(iter(g)) in train_called_names for g in ex["possible"])
     ]

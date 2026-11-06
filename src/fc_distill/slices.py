@@ -12,15 +12,13 @@ ADR 0001: a slice is reported on its own only with at least 300 rows. Every buck
 row count and 95% intervals, and buckets under the minimum are flagged `too_small`.
 """
 
-import math
 import re
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from typing import Any
 
 from fc_distill.data import Example
 from fc_distill.eda import call_pattern as _raw_call_pattern
-
-MIN_ROWS = 300
+from fc_distill.stats import MIN_ROWS, metric_block
 
 _NUMBER = re.compile(r"-?\d[\d,]*(?:\.\d+)?|-?\.\d+")
 
@@ -93,15 +91,6 @@ DIMENSIONS: dict[str, tuple[Callable[[Example], str], tuple[str, ...]]] = {
 }
 
 
-def mean_ci(values: Sequence[float]) -> tuple[float, float]:
-    """Mean and the half-width of its normal-approximation 95% interval. For 0/1 values this is the
-    usual 1.96 * sqrt(p(1-p)/n)."""
-    n = len(values)
-    m = sum(values) / n
-    var = sum((v - m) ** 2 for v in values) / n
-    return m, 1.96 * math.sqrt(var / n)
-
-
 def slice_scores(
     examples: Sequence[Example],
     scores: Sequence[Mapping[str, Any]],
@@ -109,21 +98,15 @@ def slice_scores(
     min_rows: int = MIN_ROWS,
 ) -> dict[str, dict[str, dict[str, Any]]]:
     """{dimension: {bucket: {n, too_small, <metric>, <metric>_ci, ...}}} for every dimension, with
-    every bucket listed (an empty one as n = 0). Means and intervals are rounded to 4 decimals."""
+    every bucket listed (an empty one as n = 0)."""
     metrics = list(metrics)
     out: dict[str, dict[str, dict[str, Any]]] = {}
     for dim, (assign, buckets) in DIMENSIONS.items():
         groups: dict[str, list[Mapping[str, Any]]] = {b: [] for b in buckets}
         for ex, s in zip(examples, scores, strict=True):
             groups[assign(ex)].append(s)
-        out[dim] = {}
-        for bucket, rows in groups.items():
-            block: dict[str, Any] = {"n": len(rows), "too_small": len(rows) < min_rows}
-            for m in metrics:
-                if rows:
-                    mean, ci = mean_ci([float(r[m]) for r in rows])
-                    block[m], block[f"{m}_ci"] = round(mean, 4), round(ci, 4)
-                else:
-                    block[m] = block[f"{m}_ci"] = None
-            out[dim][bucket] = block
+        out[dim] = {
+            bucket: {"too_small": len(rows) < min_rows} | metric_block(rows, metrics)
+            for bucket, rows in groups.items()
+        }
     return out
