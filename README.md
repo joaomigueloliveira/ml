@@ -42,9 +42,9 @@ Baselines (#10), strict exact match with 95% intervals. Full tables, slices and 
 
 | Model | Role | Test | Test-clean | BFCL (unseen tools) |
 |---|---|---:|---:|---:|
-| Qwen3.5-0.8B | student | 46.4 ± 2.2 | 55.1 ± 2.4 | 64.8 ± 3.0 |
-| Qwen3.5-2B | teacher | 65.3 ± 2.1 | 76.9 ± 2.1 | 82.7 ± 2.3 |
-| Qwen3.5-4B | reference | 68.7 ± 2.0 | 81.7 ± 1.9 | 83.4 ± 2.3 |
+| Qwen3.5-0.8B | student | 46.4 [44.2, 48.5] | 55.1 [52.6, 57.5] | 64.8 [61.8, 67.7] |
+| Qwen3.5-2B | teacher | 65.3 [63.2, 67.4] | 76.9 [74.8, 78.9] | 82.7 [80.2, 84.9] |
+| Qwen3.5-4B | reference | 69.0 [67.0, 71.0] | 82.2 [80.3, 84.0] | 82.7 [80.2, 84.9] |
 
 The gap to close is 21.8 points on test-clean. Training results: _in progress_.
 

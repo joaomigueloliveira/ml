@@ -13,9 +13,9 @@ ambiguous (287) or wrong (88), and `test-clean` leaves them out.
 | | Rows |
 |---|---:|
 | Test | 2,000 |
-| Every model right (assumed sound) | 746 |
-| Audited (at least one model wrong) | 1,254 |
-| Label sound | 879 |
+| Every model right (assumed sound) | 742 |
+| Audited (some model wrong in some run) | 1,258 |
+| Label sound | 883 |
 | Label ambiguous | 287 |
 | Label wrong | 88 |
 | **`test-clean`** | **1,625** |
@@ -28,10 +28,10 @@ The official baseline runs (#10, [`baselines.md`](baselines.md)), strict exact m
 |---|---:|---:|
 | Qwen3.5-0.8B (student) | 46.4 | 55.1 |
 | Qwen3.5-2B (teacher) | 65.3 | 76.9 |
-| Qwen3.5-4B | 68.7 | 81.7 |
+| Qwen3.5-4B | 69.0 | 82.2 |
 
-Removing the unsound rows raises every model by 9 to 13 points, and the 2B-to-4B gap grows from 3.4 to
-4.8 points. The wrong-argument errors that stayed flat from 0.8B to 4B in scouting ([ADR 0002](../docs/adr/0002-test-labels-never-edited.md)) were mostly label noise: 4B gets 243
+Removing the unsound rows raises every model by 9 to 13 points, and the 2B-to-4B gap grows from 3.8 to
+5.3 points. The wrong-argument errors that stayed flat from 0.8B to 4B in scouting ([ADR 0002](../docs/adr/0002-test-labels-never-edited.md)) were mostly label noise: 4B gets 243
 of the 287 ambiguous rows wrong, and 87 of the 88 wrong ones.
 
 ## What makes a label unsound
@@ -50,22 +50,24 @@ Sound labels that a strict scorer still marks wrong for an equivalent call:
 
 | Category | Rows | |
 |---|---:|---|
-| Default made explicit | 122 | gold passes an optional argument at its default, or the model does; 71 set automatically. #15 adds a lenient score for these |
+| Default made explicit | 123 | gold passes an optional argument at its default, or the model does; 71 set automatically. #15 adds a lenient score for these |
 | Convention not stated in spec | 6 | interest rates passed as decimals (`0.04` for 4%), consistent per tool across the dataset |
 
 ## Method
 
 - The audit covers every row that **any** of 0.8B, 2B and 4B gets wrong, not only the teacher's
-  errors as #8 first proposed. Auditing only 2B and 4B errors would have kept 17 unsound rows that only
-  the student misses. That would have lowered the student's `test-clean` score by 0.6 points and
+  errors as #8 first proposed. Auditing only 2B and 4B errors would have kept 18 unsound rows that only
+  the student misses. That would have lowered the student's `test-clean` score by 0.5 points and
   widened the teacher-student gap by 0.8.
 - Automatic verdicts are used only where the outcome doesn't depend on which model erred:
   code-valued gold arguments (label wrong), and rows where every wrong prediction differs from gold
   only by optional defaults (sound label).
-- The audited rows follow the official baseline runs (#10). Re-running the 4B there changed 9 of
-  its errors (batched greedy decoding is not perfectly deterministic): 9 new rows were labelled, 8
-  sound and 1 ambiguous, and 4 sound rows that no model misses any more left the audit.
-- The remaining 1,177 rows were labelled by hand against the rubric. Model identities were hidden
+- The audited rows follow the official baseline runs (#10). Batched greedy decoding is not
+  perfectly deterministic, and the 4B's errors changed by a few rows between runs. Each new error on an
+  unaudited row was labelled (13 rows: 12 sound, 1 ambiguous), and a row keeps its verdict once it has
+  one, even when a later run no longer misses it. So the audit only grows and `test-clean` doesn't
+  move with run-to-run noise.
+- The remaining 1,181 rows were labelled by hand against the rubric. Model identities were hidden
   and predictions were shown in a fixed shuffled order.
 - Repeated cases get the same verdict: a format choice the spec leaves open (casing, prefixes,
   separators, off-by-one page numbering when the spec is silent) is ambiguous every time it comes up.
