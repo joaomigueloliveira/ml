@@ -26,6 +26,10 @@ Splits: train (56,392), validation (1,000) and test (2,000), grouped so no query
 two splits, with train filtered of duplicates, code-valued arguments and contradicting labels. How
 and why: [`notebooks/01_dataset.ipynb`](notebooks/01_dataset.ipynb) and [`docs/adr/`](docs/adr/).
 
+A second eval, on tools the student never trained on, uses the non-live single-turn part of
+[BFCL](https://huggingface.co/datasets/gorilla-llm/Berkeley-Function-Calling-Leaderboard) (1,000
+rows), with specs converted to xLAM's format: [`docs/bfcl.md`](docs/bfcl.md).
+
 ## Results
 
 _In progress._
@@ -39,6 +43,7 @@ gated dataset (accept the terms on the dataset page, then `uv run hf auth login`
 uv sync --extra inference         # base + vLLM
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split validation
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split test-clean   # official numbers: test and test-clean
+uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl         # unseen tools
 ```
 
 ## Development
@@ -65,10 +70,11 @@ src/fc_distill/
   scoring.py    strict, deterministic scorer
   evaluate.py   vLLM eval CLI (fc-eval)
   audit.py      test label audit and the test-clean subset (fc-audit)
+  bfcl.py       BFCL unseen-tools subset: loading, spec conversion, scoring
 notebooks/      01_dataset.ipynb: the dataset story and the split
 tests/          unit tests (CPU only)
 data/           committed split ids and the audit labels
-docs/           ADRs and the label-audit rubric
+docs/           ADRs, the label-audit rubric and the BFCL notes
 results/        results worth keeping (label audit)
 ```
 

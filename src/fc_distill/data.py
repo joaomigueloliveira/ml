@@ -72,8 +72,12 @@ def parse_row(row: dict[str, Any]) -> Example:
 
 
 def to_messages(example: Example) -> list[Message]:
-    tools = json.dumps(example["tools"], indent=1)
+    return prompt_messages(example["query"], example["tools"])
+
+
+def prompt_messages(query: str, tools: list[dict[str, Any]]) -> list[Message]:
+    """The chat every model sees: tool specs in the system prompt, the query as the user turn."""
     return [
-        {"role": "system", "content": SYSTEM_PROMPT.format(tools=tools)},
-        {"role": "user", "content": example["query"]},
+        {"role": "system", "content": SYSTEM_PROMPT.format(tools=json.dumps(tools, indent=1))},
+        {"role": "user", "content": query},
     ]
