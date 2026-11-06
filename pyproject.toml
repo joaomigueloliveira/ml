@@ -18,6 +18,7 @@ inference = ["vllm==0.33.0"]
 [project.scripts]
 fc-eval = "fc_distill.evaluate:main"
 fc-audit = "fc_distill.audit:main"
+fc-report = "fc_distill.report:main"
 
 [dependency-groups]
 dev = [

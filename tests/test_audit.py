@@ -82,6 +82,17 @@ def test_prepare_audits_rows_any_model_gets_wrong_and_keeps_existing_verdicts():
     assert (rows[1]["verdict"], rows[1]["reason"]) == ("label_wrong", "kept")
 
 
+def test_prepare_keeps_a_verdict_when_no_model_misses_the_row_any_more():
+    test = [make_example(0), make_example(1)]
+    right = (True, '[{"name": "f", "arguments": {"x": 1}}]')
+    predictions = {"big": {0: right, 1: right}}
+    existing = {0: _row(0, "label_ambiguous") | {"models_wrong": "big", "reason": "kept"}}
+    rows = prepare(test, predictions, existing)
+    assert [(r["id"], r["verdict"], r["models_wrong"]) for r in rows] == [
+        (0, "label_ambiguous", "")
+    ]
+
+
 def test_clean_ids_drops_ambiguous_and_wrong_and_requires_every_verdict():
     labels = {1: _row(1, "label_sound"), 2: _row(2, "label_ambiguous"), 3: _row(3, "label_wrong")}
     assert clean_ids([0, 1, 2, 3], labels) == [0, 1]

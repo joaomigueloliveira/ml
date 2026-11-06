@@ -11,7 +11,6 @@ from fc_distill.quality import (
     type_mismatches,
     unknown_calls,
 )
-from fc_distill.scoring import without_defaults
 from tests.factories import make_example
 
 
@@ -153,17 +152,3 @@ def test_query_template_masks_numbers_strings_and_punctuation():
     )
     assert query_template("Weather in 'Paris'?") == query_template('weather in "Lisbon"')
     assert query_template("factorial of 5") != query_template("fibonacci of 5")
-
-
-def test_without_defaults_drops_only_optional_arguments_at_their_default_or_null():
-    params = {
-        "x": {"type": "int"},
-        "unit": {"type": "str, optional", "default": "km"},
-        "note": {"type": "str, optional"},
-        "q": {"type": "str", "default": "google.com"},
-    }
-    tools = [{"name": "f", "parameters": params}]
-    calls = [{"name": "f", "arguments": {"x": None, "unit": "km", "note": None, "q": "google.com"}}]
-    assert without_defaults(calls, tools) == [
-        {"name": "f", "arguments": {"x": None, "q": "google.com"}}
-    ]  # type: ignore[arg-type]

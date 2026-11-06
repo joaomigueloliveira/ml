@@ -9,7 +9,8 @@ test split itself is never edited.
 Every test row that **at least one** of Qwen3.5-0.8B, 2B and 4B gets wrong (strict exact match).
 Auditing only the teacher's (2B) errors would remove the bad labels that trip the teacher and keep the
 ones that trip only the student, which would bias the student/teacher gap on `test-clean`. Rows that every
-model gets right are assumed sound.
+model gets right are assumed sound. A row keeps its verdict once it has one, even if a later run no
+longer misses it: the verdict is about the label, not about which model erred.
 
 The labeller sees the query, the offered tools, the gold label and the wrong predictions, with the
 models anonymised and shuffled, so a verdict can't favour one model.

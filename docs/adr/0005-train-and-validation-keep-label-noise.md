@@ -4,8 +4,8 @@ Date: 2026-11-06 · Status: accepted
 
 ## Context
 
-The test label audit (#8, [results](../../results/label-audit.md)) found that at least 18.7% of test
-rows have an unsound gold label: 286 ambiguous and 88 wrong out of 2,000. The main causes are a format the
+The test label audit (#8, [results](../../results/label-audit.md)) found that at least 18.75% of test
+rows have an unsound gold label: 287 ambiguous and 88 wrong out of 2,000. The main causes are a format the
 spec leaves open (`UK` vs `GB`, casing), a value the query doesn't fix, and a value gold makes up
 (`zuid: "jkl012"` for "agent D"). Test is a random sample of xLAM, so train very likely has a similar
 share, roughly 10,000 of its 56,392 rows. The train filters so far (ADR 0002, #6) remove only 213

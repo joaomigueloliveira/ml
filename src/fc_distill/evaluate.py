@@ -4,26 +4,57 @@ non-live single-turn subset (unseen tools, fc_distill.bfcl).
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --n 500
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B   # re-score saved predictions, no GPU
+
+A run refuses to start from a working tree with uncommitted changes to tracked files, so the
+commit in its provenance identifies the code that produced it (--allow-dirty overrides).
 """
 
 import argparse
+import hashlib
 import json
 import os
+import subprocess
 import time
+from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, get_args
+from typing import Any, NamedTuple, get_args
 
 from fc_distill import bfcl
-from fc_distill.data import EvalSplit, Example, Message, load_split, to_messages
+from fc_distill.data import (
+    DATASET_REVISION,
+    DEFAULT_SPLITS_PATH,
+    SYSTEM_PROMPT,
+    EvalSplit,
+    Example,
+    Message,
+    load_split,
+    to_messages,
+)
 from fc_distill.scoring import METRICS, score, summarize
 from fc_distill.slices import slice_scores
 
 SPLITS = (*get_args(EvalSplit), "bfcl")
 
 
+class Suite(NamedTuple):
+    """How one eval split is loaded, prompted and scored."""
+
+    load: Callable[[], Sequence[Any]]
+    messages: Callable[[Any], list[Message]]
+    score: Callable[[Sequence[Any], list[str], Path], dict[str, Any]]
+
+
+def suite(split: str) -> Suite:
+    if split == "bfcl":
+        return Suite(bfcl.load, bfcl.to_messages, score_bfcl)
+    return Suite(lambda: load_split(split), to_messages, score_xlam)  # type: ignore[arg-type]
+
+
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--model", help="HF model id or local path")
+    ap.add_argument("--revision", default=None, help="model revision (default: latest on main)")
     ap.add_argument(
         "--rescore",
         type=Path,
@@ -41,9 +72,14 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument(
         "--max-num-seqs", type=int, default=None, help="cap concurrent sequences (big models)"
     )
+    ap.add_argument(
+        "--allow-dirty", action="store_true", help="run even with uncommitted changes (recorded)"
+    )
     args = ap.parse_args()
     if (args.model is None) == (args.rescore is None):
         ap.error("give exactly one of --model or --rescore")
+    if args.model and not args.allow_dirty and git_state()["dirty"]:
+        ap.error("uncommitted changes to tracked files; commit them or pass --allow-dirty")
     return args
 
 
@@ -58,17 +94,14 @@ def main() -> None:
     # Imported here so the rest of the package (and its tests) don't need the GPU extra.
     from vllm import LLM, SamplingParams
 
-    if args.split == "bfcl":
-        bfcl_examples = bfcl.load()[: args.n]
-        prompts: list[list[Message]] = [bfcl.to_messages(ex) for ex in bfcl_examples]
-    else:
-        examples = load_split(args.split)[: args.n]
-        prompts = [to_messages(ex) for ex in examples]
+    s = suite(args.split)
+    rows = list(s.load())[: args.n]
     out: Path = args.out or Path("runs") / f"eval-{args.split}-{args.model.replace('/', '_')}"
     out.mkdir(parents=True, exist_ok=True)
 
     llm = LLM(
         model=args.model,
+        revision=args.revision,
         max_model_len=args.max_model_len,
         gpu_memory_utilization=args.gpu_mem,
         quantization=args.quantization,
@@ -79,24 +112,58 @@ def main() -> None:
 
     start = time.perf_counter()
     outputs = llm.chat(
-        prompts,
+        [s.messages(r) for r in rows],
         params,
         chat_template_kwargs={"enable_thinking": False},
     )
     elapsed = time.perf_counter() - start
 
-    texts = [o.outputs[0].text for o in outputs]
-    if args.split == "bfcl":
-        metrics = score_bfcl(bfcl_examples, texts, out)
-    else:
-        metrics = score_xlam(examples, texts, out)
+    metrics = s.score(rows, [o.outputs[0].text for o in outputs], out)
     run = {
         "model": args.model,
         "split": args.split,
         "seconds": round(elapsed, 1),
         "output_tokens": sum(len(o.outputs[0].token_ids) for o in outputs),
+        "provenance": provenance(args),
     }
     write_summary(out, metrics, run)
+
+
+def git_state() -> dict[str, Any]:
+    def git(*cmd: str) -> str:
+        return subprocess.run(["git", *cmd], capture_output=True, text=True).stdout.strip()
+
+    return {
+        "commit": git("rev-parse", "HEAD"),
+        "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
+    }
+
+
+def _sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def provenance(args: argparse.Namespace) -> dict[str, Any]:
+    """What produced this run: code commit, exact model weights, data and prompt versions, and
+    decoding settings."""
+    import vllm
+    from huggingface_hub import model_info
+
+    local = Path(args.model).exists()
+    return git_state() | {
+        "model_revision": None if local else model_info(args.model, revision=args.revision).sha,
+        "xlam_revision": DATASET_REVISION,
+        "bfcl_revision": bfcl.REVISION if args.split == "bfcl" else None,
+        "splits_sha256": _sha256(DEFAULT_SPLITS_PATH.read_bytes()),
+        "prompt_sha256": _sha256(SYSTEM_PROMPT.encode()),
+        "vllm": vllm.__version__,
+        "decoding": "greedy, thinking off",
+        "max_tokens": args.max_tokens,
+        "max_model_len": args.max_model_len,
+        "max_num_seqs": args.max_num_seqs,
+        "gpu_mem": args.gpu_mem,
+        "quantization": args.quantization,
+    }
 
 
 def write_summary(out: Path, metrics: dict[str, Any], run: dict[str, Any]) -> None:
@@ -105,25 +172,29 @@ def write_summary(out: Path, metrics: dict[str, Any], run: dict[str, Any]) -> No
     print(json.dumps(summary, indent=2))
 
 
-def rescore(run_dir: Path) -> None:
-    """Score a saved run again with the current scorer: rewrites predictions.jsonl and
-    summary.json, keeping the run's model, split, time and token count."""
-    old = json.loads((run_dir / "summary.json").read_text())
+def read_run(run_dir: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """A saved run's summary.json and predictions.jsonl records."""
+    summary = json.loads((run_dir / "summary.json").read_text())
     with (run_dir / "predictions.jsonl").open() as f:
         records = [json.loads(line) for line in f]
-    texts = [r["prediction"] for r in records]
-    split = old["split"]
-    if split == "bfcl":
-        by_bfcl_id = {ex["id"]: ex for ex in bfcl.load()}
-        metrics = score_bfcl([by_bfcl_id[r["id"]] for r in records], texts, run_dir)
-    else:
-        by_id = {ex["id"]: ex for ex in load_split(split)}
-        metrics = score_xlam([by_id[r["id"]] for r in records], texts, run_dir)
-    keep = ("model", "split", "seconds", "output_tokens")
-    write_summary(run_dir, metrics, {k: old[k] for k in keep if k in old})
+    return summary, records
 
 
-def score_xlam(examples: list[Example], texts: list[str], out: Path) -> dict[str, Any]:
+def rescore(run_dir: Path) -> None:
+    """Score a saved run again with the current scorer: rewrites predictions.jsonl and
+    summary.json. The run's own provenance is kept, and `rescored_by` records the scorer's code."""
+    old, records = read_run(run_dir)
+    s = suite(old["split"])
+    by_id = {r["id"]: r for r in s.load()}
+    rows = [by_id[r["id"]] for r in records]
+    metrics = s.score(rows, [r["prediction"] for r in records], run_dir)
+    keep = ("model", "split", "seconds", "output_tokens", "provenance")
+    run = {k: old[k] for k in keep if k in old}
+    rescored = git_state() | {"at": datetime.now(UTC).isoformat(timespec="seconds")}
+    write_summary(run_dir, metrics, run | {"rescored_by": rescored})
+
+
+def score_xlam(examples: Sequence[Example], texts: list[str], out: Path) -> dict[str, Any]:
     """Score xLAM predictions, write predictions.jsonl, and summarise overall and per slice."""
     scores = []
     with (out / "predictions.jsonl").open("w") as f:
@@ -132,12 +203,12 @@ def score_xlam(examples: list[Example], texts: list[str], out: Path) -> dict[str
             scores.append(s)
             record = {"id": ex["id"], "prediction": text, "gold": ex["answers"], **s}
             f.write(json.dumps(record) + "\n")
-    return dict(summarize(scores)) | {"slices": slice_scores(examples, scores, METRICS)}
+    return summarize(scores) | {"slices": slice_scores(examples, scores, METRICS)}
 
 
-def score_bfcl(examples: list[bfcl.BfclExample], texts: list[str], out: Path) -> dict[str, Any]:
+def score_bfcl(examples: Sequence[bfcl.BfclRow], texts: list[str], out: Path) -> dict[str, Any]:
     """Score BFCL predictions, write predictions.jsonl, and summarise per slice and category,
-    with the rows whose gold calls a function name that also appears in xLAM train."""
+    with the rows whose gold calls a function name that some xLAM train answer calls."""
     scores = []
     with (out / "predictions.jsonl").open("w") as f:
         for ex, text in zip(examples, texts, strict=True):
@@ -145,8 +216,8 @@ def score_bfcl(examples: list[bfcl.BfclExample], texts: list[str], out: Path) ->
             scores.append(s)
             record = {"id": ex["id"], "category": ex["category"], "prediction": text}
             f.write(json.dumps(record | {"gold": ex["possible"], **s}) + "\n")
-    train_names = {t["name"] for ex in load_split("train") for t in ex["tools"]}
-    seen = bfcl.seen_in_train(examples, train_names)
+    called = {c["name"] for ex in load_split("train") for c in ex["answers"]}
+    seen = bfcl.seen_in_train(examples, called)
     return bfcl.summarize(examples, scores) | {"rows_calling_a_train_function_name": len(seen)}
 
 
