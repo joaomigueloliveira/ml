@@ -158,6 +158,9 @@ def score(prediction: str, gold: Sequence[Call], tools: Sequence[dict[str, Any]]
     }
 
 
+METRICS = ("parse_ok", "exact", "lenient_exact", "names", "arg_f1")
+
+
 def summarize(scores: Sequence[Score]) -> dict[str, float]:
     """Mean of every metric over a set of scored examples."""
     return {
