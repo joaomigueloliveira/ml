@@ -3,8 +3,10 @@
 1. Exact duplicate rows are collapsed to their lowest id, in every split.
 2. Rows are grouped by normalized query, and whole groups are assigned to a split, so the same
    query text can never appear in two splits.
-3. Train only: rows with code-valued arguments or conflicting labels are removed. Validation and
-   test keep their rows exactly as published.
+3. Train only: rows with code-valued arguments or conflicting labels are removed, and so are rows
+   whose gold answer equals a validation or test gold answer (a reworded query with the same
+   values, so training on it would teach the held-out answer). Validation and test keep their rows
+   exactly as published.
 """
 
 import json
@@ -16,6 +18,7 @@ from typing import TypedDict
 
 from fc_distill.data import DEFAULT_SPLITS_PATH, Example, Split
 from fc_distill.quality import code_arguments, conflicting_labels, exact_duplicates, normalize_query
+from fc_distill.scoring import call_multiset
 
 VALIDATION_SIZE = 1000
 TEST_SIZE = 2000
@@ -27,6 +30,8 @@ class SplitReport(TypedDict):
     exact_duplicates_removed: int
     train_code_arguments_removed: int
     train_conflicting_labels_removed: int
+    # Same gold answer as a validation or test row (as strict exact compares calls).
+    train_answer_in_held_out_removed: int
     sizes: dict[str, int]
     # Rows validation and test keep as published although they'd fail a train filter (for #8).
     held_out_code_argument_rows: dict[str, int]
@@ -73,15 +78,20 @@ def build_splits(
     train = [ex for ex in unique if ex["id"] in train_ids]
     code = {issue.row_id for issue in code_arguments(train)}
     conflicting = {i for group in conflicting_labels(train) for i in group}
-    splits["train"] = sorted(train_ids - code - conflicting)
 
     by_id = {ex["id"]: ex for ex in unique}
     held_out = {name: [by_id[i] for i in splits[name]] for name in ("validation", "test")}
+    held_out_answers = {call_multiset(ex["answers"]) for exs in held_out.values() for ex in exs}
+    answer_in_held_out = {
+        ex["id"] for ex in train if call_multiset(ex["answers"]) in held_out_answers
+    }
+    splits["train"] = sorted(train_ids - code - conflicting - answer_in_held_out)
     report: SplitReport = {
         "rows": len(examples),
         "exact_duplicates_removed": len(duplicates),
         "train_code_arguments_removed": len(code),
         "train_conflicting_labels_removed": len(conflicting - code),
+        "train_answer_in_held_out_removed": len(answer_in_held_out - code - conflicting),
         "sizes": {name: len(ids) for name, ids in splits.items()},
         "held_out_code_argument_rows": {
             name: len({i.row_id for i in code_arguments(exs)}) for name, exs in held_out.items()

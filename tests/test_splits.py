@@ -78,3 +78,44 @@ def test_write_splits_keeps_test_clean_only_while_test_is_unchanged(tmp_path):
     changed = splits | {"test": splits["test"][1:]}
     write_splits(changed, report, path)
     assert "test-clean" not in json.loads(path.read_text())
+
+
+def _two_rows(answer_a, answer_b):
+    """Two rows with different queries; with test_size=1, one lands in test and one in train."""
+    return [
+        make_example(1, query="reworded a", answers=answer_a),
+        make_example(2, query="reworded b", answers=answer_b),
+    ]
+
+
+def test_train_row_with_a_held_out_gold_answer_is_dropped():
+    # Same calls in another order, 1 vs 1.0: the same gold answer under strict exact.
+    a = [{"name": "f", "arguments": {"x": 1}}, {"name": "g", "arguments": {}}]
+    b = [{"name": "g", "arguments": {}}, {"name": "f", "arguments": {"x": 1.0}}]
+    splits, report = build_splits(_two_rows(a, b), validation_size=0, test_size=1, seed=0)
+    assert len(splits["test"]) == 1
+    assert splits["train"] == []
+    assert report["train_answer_in_held_out_removed"] == 1
+    assert report["sizes"] == {"train": 0, "validation": 0, "test": 1}
+
+
+def test_validation_answers_are_held_out_too():
+    a = [{"name": "f", "arguments": {"x": 1}}]
+    splits, report = build_splits(_two_rows(a, a), validation_size=1, test_size=0, seed=0)
+    assert splits["train"] == []
+    assert report["train_answer_in_held_out_removed"] == 1
+
+
+def test_same_function_with_other_values_stays_in_train():
+    a = [{"name": "f", "arguments": {"x": 1}}]
+    b = [{"name": "f", "arguments": {"x": 2}}]
+    splits, report = build_splits(_two_rows(a, b), validation_size=0, test_size=1, seed=0)
+    assert len(splits["train"]) == 1
+    assert report["train_answer_in_held_out_removed"] == 0
+
+
+def test_zero_argument_answers_are_dropped_too():
+    a = [{"name": "f", "arguments": {}}]
+    splits, report = build_splits(_two_rows(a, a), validation_size=0, test_size=1, seed=0)
+    assert splits["train"] == []
+    assert report["train_answer_in_held_out_removed"] == 1
