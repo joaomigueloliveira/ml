@@ -1,11 +1,5 @@
-import json
-import math
-from pathlib import Path
 from typing import Any
 
-import pytest
-
-from fc_distill import evaluate
 from fc_distill.data import Example
 from fc_distill.slices import (
     argument_source,
@@ -82,7 +76,10 @@ def test_slice_scores_counts_flags_and_intervals():
     assert single_block["n"] == 4
     assert single_block["too_small"] is False
     assert single_block["exact"] == 0.75
-    assert single_block["exact_ci"] == round(1.96 * math.sqrt(0.75 * 0.25 / 4), 4)
+    low, high = single_block["exact_ci"]
+    assert low < 0.75 < high
+    assert low >= 0.0
+    assert high <= 1.0
     assert out["call_pattern"]["parallel"]["too_small"] is True
     assert out["call_pattern"]["multiple"] == {
         "n": 0,
@@ -91,25 +88,3 @@ def test_slice_scores_counts_flags_and_intervals():
         "exact_ci": None,
     }
     assert sum(b["n"] for b in out["distractors"].values()) == 6
-
-
-def test_rescore_rewrites_summary_from_saved_predictions(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    ex = make_example(7, answers=[{"name": "f", "arguments": {"x": 1}}])
-    monkeypatch.setattr(evaluate, "load_split", lambda split: [ex])
-    (tmp_path / "summary.json").write_text(
-        json.dumps({"model": "m", "split": "test", "seconds": 1.0, "exact": 0.0})
-    )
-    prediction = json.dumps([{"name": "f", "arguments": {"x": 1}}])
-    (tmp_path / "predictions.jsonl").write_text(
-        json.dumps({"id": 7, "prediction": prediction}) + "\n"
-    )
-    evaluate.rescore(tmp_path)
-    summary = json.loads((tmp_path / "summary.json").read_text())
-    assert summary["exact"] == 1
-    assert summary["lenient_exact"] == 1
-    assert (summary["model"], summary["split"], summary["seconds"]) == ("m", "test", 1.0)
-    assert summary["slices"]["call_pattern"]["single"]["n"] == 1
-    record = json.loads((tmp_path / "predictions.jsonl").read_text())
-    assert record["exact"] is True

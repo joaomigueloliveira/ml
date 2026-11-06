@@ -13,10 +13,10 @@ import json
 import re
 from collections import Counter
 from collections.abc import Hashable, Sequence
-from statistics import mean
 from typing import Any, TypedDict, cast
 
 from fc_distill.data import Call
+from fc_distill.stats import metric_block
 
 _THINK = re.compile(r"<think>.*?</think>", re.DOTALL)
 _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
@@ -52,24 +52,27 @@ def parse_calls(text: str) -> list[Call] | None:
     return cast(list[Call], calls)
 
 
-def _canon(value: Any) -> Hashable:
+def canon(value: Any) -> Hashable:
     """Canonical, hashable form of a JSON value. 5 and 5.0 compare equal, but True != 1
-    (Python says True == 1.0, so bools and numbers are tagged to keep them apart)."""
+    (Python says True == 1.0, so bools and numbers are tagged to keep them apart). Integers stay
+    exact: converting them to float would make 2**53 + 1 equal to 2**53."""
     if isinstance(value, bool):
         return ("bool", value)
-    if isinstance(value, int | float):
-        return ("num", float(value))
+    if isinstance(value, int):
+        return ("num", value)
+    if isinstance(value, float):
+        return ("num", int(value) if value.is_integer() else value)
     if value is None or isinstance(value, str):
         return value
     if isinstance(value, list):
-        return tuple(_canon(v) for v in value)
+        return tuple(canon(v) for v in value)
     if isinstance(value, dict):
-        return tuple(sorted((k, _canon(v)) for k, v in value.items()))
+        return tuple(sorted((k, canon(v)) for k, v in value.items()))
     return repr(value)
 
 
 def _call_key(call: Call) -> Hashable:
-    return (call["name"], _canon(call["arguments"]))
+    return (call["name"], canon(call["arguments"]))
 
 
 def call_multiset(calls: Sequence[Call]) -> frozenset[tuple[Hashable, int]]:
@@ -85,13 +88,18 @@ def is_optional(spec: dict[str, Any]) -> bool:
 
 def is_default(spec: dict[str, Any], value: Any) -> bool:
     """An optional argument passed at its declared default, or as null: same as leaving it out.
-    xLAM often writes the default as a string ("17" for an int), so that form matches too."""
+    xLAM often writes the default as a string ("17" for an int, "true" or "True" for a bool), so
+    those forms match too. A bool never matches a numeric default (True is not 1)."""
     if not is_optional(spec):
         return False
     if value is None or "default" not in spec:
         return value is None
     default = spec["default"]
-    return bool(value == default or (isinstance(default, str) and json.dumps(value) == default))
+    if canon(value) == canon(default):
+        return True
+    if not isinstance(default, str):
+        return False
+    return json.dumps(value) == default or (isinstance(value, bool) and str(value) == default)
 
 
 def without_defaults(calls: Sequence[Call], tools: Sequence[dict[str, Any]]) -> list[Call]:
@@ -120,7 +128,7 @@ def lenient_match(
 
 
 def _arg_triples(calls: Sequence[Call]) -> Counter[Hashable]:
-    return Counter((c["name"], k, _canon(v)) for c in calls for k, v in c["arguments"].items())
+    return Counter((c["name"], k, canon(v)) for c in calls for k, v in c["arguments"].items())
 
 
 def score(prediction: str, gold: Sequence[Call], tools: Sequence[dict[str, Any]] = ()) -> Score:
@@ -161,13 +169,6 @@ def score(prediction: str, gold: Sequence[Call], tools: Sequence[dict[str, Any]]
 METRICS = ("parse_ok", "exact", "lenient_exact", "names", "arg_f1")
 
 
-def summarize(scores: Sequence[Score]) -> dict[str, float]:
-    """Mean of every metric over a set of scored examples."""
-    return {
-        "n": len(scores),
-        "parse_ok": mean(s["parse_ok"] for s in scores),
-        "exact": mean(s["exact"] for s in scores),
-        "lenient_exact": mean(s["lenient_exact"] for s in scores),
-        "names": mean(s["names"] for s in scores),
-        "arg_f1": mean(s["arg_f1"] for s in scores),
-    }
+def summarize(scores: Sequence[Score]) -> dict[str, Any]:
+    """Mean of every metric over a set of scored rows, each with its 95% interval."""
+    return metric_block(scores, METRICS)

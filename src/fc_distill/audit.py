@@ -102,14 +102,19 @@ def prepare(
     predictions: Mapping[str, Mapping[int, tuple[bool, str]]],
     existing: Mapping[int, AuditRow] | None = None,
 ) -> list[AuditRow]:
-    """One row per test example that at least one model gets wrong. Verdicts already in
-    `existing` are kept, so re-running after new model runs doesn't lose labelling work.
+    """One row per test example that at least one model gets wrong, plus every row that already
+    has a verdict. Verdicts already in `existing` are kept, so re-running after new model runs
+    doesn't lose labelling work, and the audited set only grows.
     Automatic verdicts are always recomputed, so a rule change reaches every row."""
     existing = existing or {}
     rows: list[AuditRow] = []
     for ex in test:
         wrong = [m for m, preds in predictions.items() if not preds[ex["id"]][0]]
         if not wrong:
+            # A verdict is about the label, not about who erred: keep it when a later run no
+            # longer misses the row, so test-clean doesn't change with run-to-run noise.
+            if (old := existing.get(ex["id"])) and old["verdict"]:
+                rows.append(old | {"models_wrong": ""})
             continue
         row: AuditRow = {
             "id": ex["id"],

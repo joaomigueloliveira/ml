@@ -37,7 +37,16 @@ rows), with specs converted to xLAM's format: [`docs/bfcl.md`](docs/bfcl.md).
 
 ## Results
 
-_In progress._
+Baselines (#10), strict exact match with 95% intervals. Full tables, slices and McNemar tests:
+[`results/baselines.md`](results/baselines.md).
+
+| Model | Role | Test | Test-clean | BFCL (unseen tools) |
+|---|---|---:|---:|---:|
+| Qwen3.5-0.8B | student | 46.4 [44.2, 48.5] | 55.1 [52.6, 57.5] | 64.8 [61.8, 67.7] |
+| Qwen3.5-2B | teacher | 65.3 [63.2, 67.4] | 76.9 [74.8, 78.9] | 82.7 [80.2, 84.9] |
+| Qwen3.5-4B | reference | 69.0 [67.0, 71.0] | 82.2 [80.3, 84.0] | 82.7 [80.2, 84.9] |
+
+The gap to close is 21.8 points on test-clean. Training results: _in progress_.
 
 ## Quickstart
 
@@ -50,6 +59,7 @@ uv run fc-eval --model Qwen/Qwen3.5-0.8B --split validation
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split test-clean   # official numbers: test and test-clean
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl         # unseen tools
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B       # re-score a saved run, no GPU
+uv run fc-report                  # results/baselines.{json,md} from the test and BFCL runs
 ```
 
 ## Development
@@ -78,11 +88,12 @@ src/fc_distill/
   audit.py      test label audit and the test-clean subset (fc-audit)
   bfcl.py       BFCL unseen-tools subset: loading, spec conversion, scoring
   slices.py     per-slice scores: call pattern, distractor tools, argument source
+  report.py     baselines report with intervals and McNemar tests (fc-report)
 notebooks/      01_dataset.ipynb: the dataset story and the split
 tests/          unit tests (CPU only)
 data/           committed split ids and the audit labels
 docs/           ADRs, the label-audit rubric and the BFCL notes
-results/        results worth keeping (label audit)
+results/        results worth keeping (label audit, baselines)
 ```
 
 ## License
