@@ -43,11 +43,15 @@ Baselines (#10), strict exact match with 95% intervals. Full tables, slices and 
 
 | Model | Role | Test | Test-clean | BFCL (unseen tools) |
 |---|---|---:|---:|---:|
-| Qwen3.5-0.8B | student | 46.4 [44.2, 48.5] | 55.1 [52.6, 57.5] | 64.8 [61.8, 67.7] |
-| Qwen3.5-2B | teacher | 65.3 [63.2, 67.4] | 76.9 [74.8, 78.9] | 82.7 [80.2, 84.9] |
-| Qwen3.5-4B | reference | 69.0 [67.0, 71.0] | 82.2 [80.3, 84.0] | 82.7 [80.2, 84.9] |
+| Qwen3.5-0.8B | student | 46.2 [44.0, 48.4] | 54.8 [52.3, 57.2] | 64.5 [61.5, 67.4] |
+| Qwen3.5-2B | teacher | 65.1 [63.0, 67.2] | 76.8 [74.7, 78.8] | 82.7 [80.2, 84.9] |
+| Qwen3.5-4B | reference | 68.8 [66.7, 70.7] | 81.8 [79.8, 83.6] | 82.7 [80.2, 84.9] |
 
-The gap to close is 21.8 points on test-clean. Training results: _in progress_.
+The gap to close is 22.0 points on test-clean. Training results: _in progress_.
+
+Training curves and eval runs, the baselines included, are logged to the public W&B project
+[joaomigueloliveira30/qwen-function-calling-distillation](https://forge.coreweave.com/wandb/joaomigueloliveira30/qwen-function-calling-distillation).
+`results/` stays the source of truth; W&B mirrors it.
 
 ## Quickstart
 
@@ -62,6 +66,28 @@ uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl         # unseen tools
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B       # re-score a saved run, no GPU
 uv run fc-report                  # results/baselines.{json,md} from the test and BFCL runs
 ```
+
+### Experiment tracking
+
+Logging to [Weights & Biases](https://forge.coreweave.com/wandb) is off unless asked for, so tests,
+CI and offline runs need no account. To turn it on, log in once with `uv run wandb login`, then pass
+`--wandb`:
+
+```bash
+uv run fc-eval --model Qwen/Qwen3.5-0.8B --split validation --wandb   # one eval run per split
+uv run fc-report --wandb          # the official baselines, one run per model, from results/
+```
+
+The official baseline runs (`summary.json` and `predictions.jsonl`) are backed up in a private
+W&B project, because they hold gated xLAM rows:
+`joaomigueloliveira30/qwen-function-calling-distillation-backup`, artifact `official-baseline-runs`.
+
+`WANDB_MODE=offline` keeps the run local (`wandb sync` uploads it later), and `WANDB_PROJECT` /
+`WANDB_ENTITY` point it at another project. Trainers log through the same helper,
+`fc_distill.tracking`, with GPU-hours (the teacher's included) as the x-axis. Every eval run uses
+the same flat keys (`test_clean/exact`, `bfcl/slice/simple/exact`, ...), so runs compare in one
+table. W&B findings, the key schema and what trainers log: [`docs/wandb.md`](docs/wandb.md),
+[`docs/wandb-dashboard.md`](docs/wandb-dashboard.md).
 
 ## Development
 
@@ -90,10 +116,12 @@ src/fc_distill/
   bfcl.py       BFCL unseen-tools subset: loading, spec conversion, scoring
   slices.py     per-slice scores: call pattern, distractor tools, argument source
   report.py     baselines report with intervals and McNemar tests (fc-report)
+  tracking.py   W&B tracking shared by trainers and evals; GPU-hour accounting, provenance
+  eval_tracking.py  how eval results are laid out in W&B (flat keys, slices table)
 notebooks/      01_dataset.ipynb: the dataset story and the split
 tests/          unit tests (CPU only)
 data/           committed split ids and the audit labels
-docs/           dataset card, ADRs, the label-audit rubric and the BFCL notes
+docs/           dataset card, ADRs, the label-audit rubric, the BFCL and W&B notes
 results/        results worth keeping (label audit, baselines)
 ```
 

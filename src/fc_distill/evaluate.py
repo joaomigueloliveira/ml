@@ -5,15 +5,17 @@ uv run fc-eval --model Qwen/Qwen3.5-0.8B --n 500
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B   # re-score saved predictions, no GPU
 
+--wandb also logs the run to Weights & Biases, as one eval run with the split's scores under
+<split>/... keys (fc_distill.eval_tracking). summary.json stays the source of truth. Official
+baselines are logged from results/ with `fc-report --wandb` instead.
+
 A run refuses to start from a working tree with uncommitted changes to tracked files, so the
 commit in its provenance identifies the code that produced it (--allow-dirty overrides).
 """
 
 import argparse
-import hashlib
 import json
 import os
-import subprocess
 import time
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
@@ -22,17 +24,16 @@ from typing import Any, NamedTuple, get_args
 
 from fc_distill import bfcl
 from fc_distill.data import (
-    DATASET_REVISION,
-    DEFAULT_SPLITS_PATH,
-    SYSTEM_PROMPT,
     EvalSplit,
     Example,
     Message,
     load_split,
     to_messages,
 )
+from fc_distill.eval_tracking import log_evals
 from fc_distill.scoring import METRICS, score, summarize
 from fc_distill.slices import slice_scores
+from fc_distill.tracking import data_provenance, git_state, hub_revision, start_run
 
 SPLITS = (*get_args(EvalSplit), "bfcl")
 
@@ -61,6 +62,10 @@ def parse_args() -> argparse.Namespace:
         metavar="RUN_DIR",
         help="re-score a saved run's predictions.jsonl and rewrite its summary (no model needed)",
     )
+    ap.add_argument("--wandb", action="store_true", help="log the run to Weights & Biases")
+    ap.add_argument(
+        "--wandb-group", default=None, help="W&B group: 'baseline', or the training arm"
+    )
     ap.add_argument("--split", choices=SPLITS, default="validation")
     ap.add_argument("--n", type=int, default=None, help="first n examples (default: all)")
     ap.add_argument("--out", type=Path, default=None, help="default: runs/eval-<model>")
@@ -87,6 +92,8 @@ def main() -> None:
     args = parse_args()
     if args.rescore:
         rescore(args.rescore)
+        if args.wandb:
+            log_to_wandb(args.rescore, args.wandb_group)
         return
     # FlashInfer's sampler JIT-compiles CUDA kernels and needs nvcc, which a driver-only setup
     # lacks. Greedy decoding doesn't need it, so fall back to vLLM's built-in sampler.
@@ -127,43 +134,53 @@ def main() -> None:
         "provenance": provenance(args),
     }
     write_summary(out, metrics, run)
+    if args.wandb:
+        log_to_wandb(out, args.wandb_group)
 
 
-def git_state() -> dict[str, Any]:
-    def git(*cmd: str) -> str:
-        return subprocess.run(["git", *cmd], capture_output=True, text=True).stdout.strip()
-
-    return {
-        "commit": git("rev-parse", "HEAD"),
-        "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
-    }
+# Summary keys that describe the run rather than score it: the W&B config, where runs can be
+# filtered by them.
+CONFIG_KEYS = ("model", "split", "provenance", "rescored_by")
 
 
-def _sha256(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+def log_to_wandb(run_dir: Path, group: str | None) -> None:
+    """Log a finished run's summary.json to W&B as an eval run named after its directory."""
+    summary = json.loads((run_dir / "summary.json").read_text())
+    tracker = start_run(
+        enabled=True,
+        job_type="eval",
+        group=group,
+        run_dir=run_dir,
+        name=run_dir.name,
+        tags=[f"split:{summary['split']}"],
+    )
+    tracker.config({k: summary[k] for k in CONFIG_KEYS if k in summary})
+    log_evals(
+        tracker, {summary["split"]: {k: v for k, v in summary.items() if k not in CONFIG_KEYS}}
+    )
+    tracker.finish()
 
 
 def provenance(args: argparse.Namespace) -> dict[str, Any]:
     """What produced this run: code commit, exact model weights, data and prompt versions, and
     decoding settings."""
     import vllm
-    from huggingface_hub import model_info
 
-    local = Path(args.model).exists()
-    return git_state() | {
-        "model_revision": None if local else model_info(args.model, revision=args.revision).sha,
-        "xlam_revision": DATASET_REVISION,
-        "bfcl_revision": bfcl.REVISION if args.split == "bfcl" else None,
-        "splits_sha256": _sha256(DEFAULT_SPLITS_PATH.read_bytes()),
-        "prompt_sha256": _sha256(SYSTEM_PROMPT.encode()),
-        "vllm": vllm.__version__,
-        "decoding": "greedy, thinking off",
-        "max_tokens": args.max_tokens,
-        "max_model_len": args.max_model_len,
-        "max_num_seqs": args.max_num_seqs,
-        "gpu_mem": args.gpu_mem,
-        "quantization": args.quantization,
-    }
+    return (
+        git_state()
+        | {"model_revision": hub_revision(args.model, args.revision)}
+        | data_provenance()
+        | {
+            "bfcl_revision": bfcl.REVISION if args.split == "bfcl" else None,
+            "vllm": vllm.__version__,
+            "decoding": "greedy, thinking off",
+            "max_tokens": args.max_tokens,
+            "max_model_len": args.max_model_len,
+            "max_num_seqs": args.max_num_seqs,
+            "gpu_mem": args.gpu_mem,
+            "quantization": args.quantization,
+        }
+    )
 
 
 def write_summary(out: Path, metrics: dict[str, Any], run: dict[str, Any]) -> None:
