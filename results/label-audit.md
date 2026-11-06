@@ -88,6 +88,11 @@ only its unsound verdict. By cause:
 The rules were settled with the reviewer after comparing the disagreements, so this isn't a second
 independent check. A fresh blind sample under the tightened rubric would be one.
 
+## What this means for training
+
+Train very likely has a similar share of unsound labels and keeps them. Why, and how scoring and
+checkpoint selection account for it: [ADR 0005](../docs/adr/0005-train-and-validation-keep-label-noise.md).
+
 ## Caveats
 
 - One labeller. The 30-row review is the only check on consistency, and its disagreements were
