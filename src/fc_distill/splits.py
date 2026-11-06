@@ -82,14 +82,16 @@ def build_splits(
     by_id = {ex["id"]: ex for ex in unique}
     held_out = {name: [by_id[i] for i in splits[name]] for name in ("validation", "test")}
     held_out_answers = {call_multiset(ex["answers"]) for exs in held_out.values() for ex in exs}
-    seen = {ex["id"] for ex in train if call_multiset(ex["answers"]) in held_out_answers}
-    splits["train"] = sorted(train_ids - code - conflicting - seen)
+    answer_in_held_out = {
+        ex["id"] for ex in train if call_multiset(ex["answers"]) in held_out_answers
+    }
+    splits["train"] = sorted(train_ids - code - conflicting - answer_in_held_out)
     report: SplitReport = {
         "rows": len(examples),
         "exact_duplicates_removed": len(duplicates),
         "train_code_arguments_removed": len(code),
         "train_conflicting_labels_removed": len(conflicting - code),
-        "train_answer_in_held_out_removed": len(seen - code - conflicting),
+        "train_answer_in_held_out_removed": len(answer_in_held_out - code - conflicting),
         "sizes": {name: len(ids) for name, ids in splits.items()},
         "held_out_code_argument_rows": {
             name: len({i.row_id for i in code_arguments(exs)}) for name, exs in held_out.items()

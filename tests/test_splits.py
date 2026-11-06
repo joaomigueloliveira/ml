@@ -112,3 +112,10 @@ def test_same_function_with_other_values_stays_in_train():
     splits, report = build_splits(_two_rows(a, b), validation_size=0, test_size=1, seed=0)
     assert len(splits["train"]) == 1
     assert report["train_answer_in_held_out_removed"] == 0
+
+
+def test_zero_argument_answers_are_dropped_too():
+    a = [{"name": "f", "arguments": {}}]
+    splits, report = build_splits(_two_rows(a, a), validation_size=0, test_size=1, seed=0)
+    assert splits["train"] == []
+    assert report["train_answer_in_held_out_removed"] == 1

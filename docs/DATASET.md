@@ -134,7 +134,13 @@ train row's (as strict exact compares calls). These rows are easy (on `test-clea
 on them and 73.5% on the rest), so training on them would raise test by memorising answers.
 
 → The 1,831 train rows with such an answer are removed (#25); validation and test don't change. After
-the filter no held-out gold answer appears in train (asserted in the notebook). So **xLAM test measures filling new values into seen tools**, and generalization to unseen
+the filter no train gold answer equals a held-out one (asserted in the notebook). A held-out answer can
+still be one call inside a larger train answer ("Is 1024 a power of 2? Also, find the minimum …"):
+555 `test-clean` rows have every gold call somewhere in train. That is kept on purpose, because the
+train row is a different, harder task, and removing every train row that shares a call with
+validation or test would cut 13% of train (ADR [0001](adr/0001-train-validation-test-split.md)).
+
+So **xLAM test measures filling new values into seen tools**, and generalization to unseen
 tools is measured on BFCL.
 
 Validation chooses checkpoints and settings; test only produces official numbers. With 2,000 test rows

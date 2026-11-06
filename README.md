@@ -29,8 +29,7 @@ row counts and 95% intervals. Buckets under 300 rows are flagged `too_small` (AD
 
 Splits: train (54,561), validation (1,000) and test (2,000), grouped so no query text appears in
 two splits, with train filtered of duplicates, code-valued arguments, contradicting labels and gold
-answers that also appear in validation or test. The
-data story, from the quality findings to the label audit and `test-clean`, is in the dataset card:
+answers that also appear in validation or test. The data story, from the quality findings to the label audit and `test-clean`, is in the dataset card:
 [`docs/DATASET.md`](docs/DATASET.md).
 
 A second eval, on tools the student never trained on, uses the non-live single-turn part of
