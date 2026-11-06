@@ -20,6 +20,10 @@ uv run fc-eval --model <hf-id> --n 500
 Never `pip install`; add dependencies with `uv add` (or `uv add --optional <extra>` for GPU-only ones)
 so `uv.lock` stays in sync.
 
+`uv sync` and plain `uv run` sync the environment to base + dev, which uninstalls vLLM. On the GPU
+machine run evals with `uv run --extra inference`, and run everything else with `uv run --no-sync`
+while a GPU run is in progress.
+
 ## Code conventions
 
 - Package code lives in `src/fc_distill/`; tests in `tests/` mirror module names.
@@ -36,6 +40,8 @@ so `uv.lock` stays in sync.
 - Commits and PR titles use Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`,
   `refactor:`, `ci:`). Link the issue in the PR body with `Closes #<n>`.
 - PR bodies follow `.github/pull_request_template.md`.
+- A PR that changes data, splits, scoring or reported numbers also gets an eval-risk review:
+  `docs/agents/eval-review.md`.
 - Commits and PR bodies carry no AI attribution; a `commit-msg` hook rejects it in commits.
 
 ## Agent skills
