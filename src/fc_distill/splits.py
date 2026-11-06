@@ -96,5 +96,12 @@ def build_splits(
 def write_splits(
     splits: dict[Split, list[int]], report: SplitReport, path: Path = DEFAULT_SPLITS_PATH
 ) -> None:
+    """Write the splits. A `test-clean` list already in the file is kept while test is unchanged,
+    so re-running the notebook doesn't drop the audit's output; if test changed it is stale."""
+    out: dict[str, object] = {name: ids for name, ids in splits.items()} | {"report": report}
+    if path.exists():
+        old = json.loads(path.read_text())
+        if "test-clean" in old and old["test"] == splits["test"]:
+            out["test-clean"] = old["test-clean"]
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({**splits, "report": report}, indent=0) + "\n")
+    path.write_text(json.dumps(out, indent=0) + "\n")

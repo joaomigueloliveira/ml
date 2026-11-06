@@ -10,6 +10,7 @@ from fc_distill.quality import (
     query_template,
     type_mismatches,
     unknown_calls,
+    without_defaults,
 )
 from tests.factories import make_example
 
@@ -66,14 +67,15 @@ def test_code_strings_in_text_and_callable_parameters_are_expected():
     assert code_arguments(exs) == []
 
 
-def test_missing_required_ignores_optional_and_defaulted_parameters():
+def test_missing_required_ignores_optional_parameters_only():
+    # xLAM gives most required parameters an example value under "default"; that's not optional.
     params = {
         "x": {"type": "int"},
         "y": {"type": "int, optional"},
         "z": {"type": "int", "default": 3},
     }
     ex = make_example(1, params=params, answers=[{"name": "f", "arguments": {}}])
-    assert missing_required([ex]) == [(1, "f", "x")]
+    assert missing_required([ex]) == [(1, "f", "x"), (1, "f", "z")]
 
 
 def test_exact_duplicates_groups_identical_rows_only():
@@ -131,16 +133,18 @@ def test_unknown_calls_flags_unoffered_functions_and_undeclared_arguments():
 
 def test_explicit_defaults_flags_default_values_and_nulls_of_optional_params_only():
     params = {
-        "a": {"type": "str", "default": "game"},
+        "a": {"type": "str, optional", "default": "game"},
         "b": {"type": "str, optional"},
         "c": {"type": "int"},
+        "d": {"type": "str", "default": "example"},  # required, "default" is only an example
+        "n": {"type": "int, optional", "default": "17"},  # xLAM often stringifies defaults
     }
     calls = [
-        {"name": "f", "arguments": {"a": "game", "b": None, "c": 1}},  # a and b flagged
-        {"name": "f", "arguments": {"a": "beta", "c": None}},  # c is required: not flagged
+        {"name": "f", "arguments": {"a": "game", "b": None, "c": 1, "n": 17}},  # a, b, n flagged
+        {"name": "f", "arguments": {"a": "beta", "c": None, "d": "example"}},  # c, d required
     ]
     issues = explicit_defaults([make_example(1, params=params, answers=calls)])
-    assert [(i.argument, i.value) for i in issues] == [("a", "game"), ("b", None)]
+    assert [(i.argument, i.value) for i in issues] == [("a", "game"), ("b", None), ("n", 17)]
 
 
 def test_query_template_masks_numbers_strings_and_punctuation():
@@ -149,3 +153,17 @@ def test_query_template_masks_numbers_strings_and_punctuation():
     )
     assert query_template("Weather in 'Paris'?") == query_template('weather in "Lisbon"')
     assert query_template("factorial of 5") != query_template("fibonacci of 5")
+
+
+def test_without_defaults_drops_only_optional_arguments_at_their_default_or_null():
+    params = {
+        "x": {"type": "int"},
+        "unit": {"type": "str, optional", "default": "km"},
+        "note": {"type": "str, optional"},
+        "q": {"type": "str", "default": "google.com"},
+    }
+    tools = [{"name": "f", "parameters": params}]
+    calls = [{"name": "f", "arguments": {"x": None, "unit": "km", "note": None, "q": "google.com"}}]
+    assert without_defaults(calls, tools) == [
+        {"name": "f", "arguments": {"x": None, "q": "google.com"}}
+    ]  # type: ignore[arg-type]

@@ -19,6 +19,8 @@ in the form [{{"name": "<tool name>", "arguments": {{<argument name>: <value>, .
 No explanations, no markdown."""
 
 Split = Literal["train", "validation", "test"]
+# test minus the rows whose label the audit (#8) found ambiguous or wrong; see fc_distill.audit.
+EvalSplit = Literal["validation", "test", "test-clean"]
 
 
 class Call(TypedDict):
@@ -44,14 +46,19 @@ def load_all() -> list[Example]:
     return [parse_row(row) for row in ds]
 
 
-def load_split(split: Split, splits_path: Path = DEFAULT_SPLITS_PATH) -> list[Example]:
+def load_split(split: Split | EvalSplit, splits_path: Path = DEFAULT_SPLITS_PATH) -> list[Example]:
     """The examples of one committed split (see `fc_distill.splits` for how it was built)."""
     if not splits_path.exists():
         raise FileNotFoundError(
             f"{splits_path} not found; it is built by notebooks/01_dataset.ipynb "
             "(fc_distill.splits.write_splits)"
         )
-    ids = set(json.loads(splits_path.read_text())[split])
+    splits = json.loads(splits_path.read_text())
+    if split not in splits:
+        raise KeyError(
+            f"{splits_path} has no {split!r} split; test-clean is built by `fc-audit build`"
+        )
+    ids = set(splits[split])
     return [ex for ex in load_all() if ex["id"] in ids]
 
 

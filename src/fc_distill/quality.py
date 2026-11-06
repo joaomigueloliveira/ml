@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from fc_distill.data import Example
+from fc_distill.data import Call, Example
 from fc_distill.scoring import call_multiset
 
 # Python types a JSON value must have for each declared base type. float accepts ints.
@@ -34,7 +34,9 @@ def base_type(declared: str) -> str:
 
 
 def is_optional(spec: dict[str, Any]) -> bool:
-    return "optional" in str(spec.get("type", "")).lower() or "default" in spec
+    """Only the type string says so ('int, optional'). xLAM puts an example value under "default"
+    on most required parameters too, and gold calls pass those 96% of the time."""
+    return "optional" in str(spec.get("type", "")).lower()
 
 
 @dataclass(frozen=True)
@@ -126,6 +128,17 @@ def unknown_calls(examples: Sequence[Example]) -> list[tuple[int, str, str | Non
     return found
 
 
+def is_default(spec: dict[str, Any], value: Any) -> bool:
+    """An optional argument passed at its declared default, or as null: same as leaving it out.
+    xLAM often writes the default as a string ("17" for an int), so that form matches too."""
+    if not is_optional(spec):
+        return False
+    if value is None or "default" not in spec:
+        return value is None
+    default = spec["default"]
+    return bool(value == default or (isinstance(default, str) and json.dumps(value) == default))
+
+
 def explicit_defaults(examples: Sequence[Example]) -> list[ArgumentIssue]:
     """Optional arguments the gold call passes at their declared default, or as null. Leaving
     them out means the same call, but strict exact match counts it as wrong."""
@@ -133,7 +146,23 @@ def explicit_defaults(examples: Sequence[Example]) -> list[ArgumentIssue]:
         ArgumentIssue(ex["id"], fn, arg, str(spec.get("type", "")), value)
         for ex in examples
         for fn, arg, spec, value in _arguments(ex)
-        if is_optional(spec) and (value is None or ("default" in spec and value == spec["default"]))
+        if is_default(spec, value)
+    ]
+
+
+def without_defaults(calls: Sequence[Call], tools: Sequence[dict[str, Any]]) -> list[Call]:
+    """The calls with every argument that `is_default` dropped. Unknown tools are kept as is."""
+    specs = {t["name"]: t.get("parameters") or {} for t in tools}
+    return [
+        {
+            "name": c["name"],
+            "arguments": {
+                k: v
+                for k, v in c["arguments"].items()
+                if not is_default(specs.get(c["name"], {}).get(k, {}), v)
+            },
+        }
+        for c in calls
     ]
 
 
