@@ -19,6 +19,7 @@ Scoring is deterministic: no LLM judge.
 |---|---|
 | `parse_ok` | output is a valid JSON list of `{name, arguments}` calls, with nothing around it |
 | `exact` | same calls as the gold answer (order-insensitive; `5 == 5.0`, `true != 1`) |
+| `lenient_exact` | `exact`, but ignoring optional arguments passed at their declared default or `null`, on either side. Many xLAM defaults look like example values copied from API docs, so such calls are the same by the tool spec, not necessarily for the real API. `exact` stays the headline |
 | `names` | the right functions were called |
 | `arg_f1` | F1 over `(function, argument, value)` triples, as partial credit |
 
