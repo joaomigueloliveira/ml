@@ -14,7 +14,7 @@ dist/
 htmlcov/
 
 # Experiment outputs (model weights, predictions, logs) — results worth keeping go in results/
-runs/
+runs
 checkpoints/
 wandb/
 
