@@ -344,7 +344,7 @@ and it exports to PDF. The workspace (one saved view) is for day-to-day work.
 |---|---|---|
 | Headline | `BarPlot(metrics=["test_clean/exact"])`, and the same for `test/exact` and `bfcl/exact`, colored by `group` | `job_type = eval`, `official` |
 | Accuracy per GPU-hour (the core claim, #2) | `LinePlot(x="compute/gpu_hours", y=["val/exact"], groupby="group", groupby_rangefunc="minmax")` | `job_type = train`, `official` |
-| Final accuracy vs compute | `ScatterPlot(x=Config("compute.gpu_hours"), y=SummaryMetric("test_clean/exact"))`. Baselines sit at x = 0. Reference lines (set in the UI) at the teacher's 76.9 and the 66.0 target | eval runs |
+| Final accuracy vs compute | `ScatterPlot(x=Config("compute.gpu_hours"), y=SummaryMetric("test_clean/exact"))`. Baselines sit at x = 0. Reference lines (set in the UI) at the teacher's 76.8 and the 65.8 target | eval runs |
 | Does it carry over to unseen tools? | `ScatterPlot(x="test_clean/exact", y="bfcl/exact")` | eval runs |
 | Where the gap closes | `ParallelCoordinatesPlot` over `test_clean/slice/*/*/exact`, plus `WeavePanelSummaryTable(table_name="slices")` | eval runs |
 | Training | `LinePlot` of `train/loss`, `train/mean_token_accuracy`, `train/distill/kl_rev`, `train/grad_norm`, `train/learning_rate` (x = `train/global_step` or `compute/gpu_hours`) | train runs |

@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -109,6 +110,7 @@ def test_wandb_logs_one_run_per_model_from_the_committed_results(
         "model": "Qwen/Qwen3.5-0.8B",
         "role": "student",
         "source": str(path),
+        "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         "provenance": {"test": {"commit": "a"}, "bfcl": {"commit": "b"}},
         "compute": {"gpu_hours": 0.0},
     }

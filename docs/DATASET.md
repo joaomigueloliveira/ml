@@ -186,9 +186,9 @@ ADR [0005](adr/0005-train-and-validation-keep-label-noise.md)). The two tell dif
 
 | | Test | `test-clean` |
 |---|---:|---:|
-| Student, Qwen3.5-0.8B | 46.4 | 55.1 |
-| Teacher, Qwen3.5-2B | 65.3 | 76.9 |
-| **Gap** | **18.9** | **21.8** |
+| Student, Qwen3.5-0.8B | 46.2 | 54.8 |
+| Teacher, Qwen3.5-2B | 65.1 | 76.8 |
+| **Gap** | **18.9** | **22.0** |
 
 Per-row verdicts: [`data/audit/test_labels.csv`](../data/audit/test_labels.csv). Full breakdown and
 method: [`results/label-audit.md`](../results/label-audit.md).

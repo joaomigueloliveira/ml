@@ -9,6 +9,7 @@ decoding isn't perfectly deterministic.
 """
 
 import argparse
+import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -286,9 +287,10 @@ def render(data: Mapping[str, Any]) -> str:
     return "\n".join(out) + "\n"
 
 
-def log_baselines(data: Mapping[str, Any], runs: Path) -> None:
+def log_baselines(data: Mapping[str, Any], runs: Path, source_sha256: str) -> None:
     """One W&B eval run per model, holding its test, test-clean and BFCL results as committed, so
-    training runs are compared against the official numbers rather than a rerun."""
+    training runs are compared against the official numbers. `source_sha256` (of the results file)
+    shows whether a logged run still matches the committed file."""
     for model, r in data["models"].items():
         short = model.split("/")[-1]
         tracker = start_run(
@@ -304,6 +306,7 @@ def log_baselines(data: Mapping[str, Any], runs: Path) -> None:
                 "model": model,
                 "role": r["role"],
                 "source": str(DEFAULT_JSON),
+                "source_sha256": source_sha256,
                 "provenance": r["provenance"],
                 "compute": {"gpu_hours": 0.0},
             }
@@ -322,7 +325,8 @@ def main() -> None:
     )
     args = ap.parse_args()
     if args.wandb:
-        log_baselines(json.loads(DEFAULT_JSON.read_text()), args.runs)
+        raw = DEFAULT_JSON.read_bytes()
+        log_baselines(json.loads(raw), args.runs, hashlib.sha256(raw).hexdigest())
         return
     data = build(args.runs)
     DEFAULT_JSON.parent.mkdir(parents=True, exist_ok=True)

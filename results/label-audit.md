@@ -26,13 +26,24 @@ The official baseline runs (#10, [`baselines.md`](baselines.md)), strict exact m
 
 | Model | Test | `test-clean` |
 |---|---:|---:|
-| Qwen3.5-0.8B (student) | 46.4 | 55.1 |
-| Qwen3.5-2B (teacher) | 65.3 | 76.9 |
-| Qwen3.5-4B | 69.0 | 82.2 |
+| Qwen3.5-0.8B (student) | 46.2 | 54.8 |
+| Qwen3.5-2B (teacher) | 65.1 | 76.8 |
+| Qwen3.5-4B | 68.8 | 81.8 |
 
-Removing the unsound rows raises every model by 9 to 13 points, and the 2B-to-4B gap grows from 3.8 to
-5.3 points. The wrong-argument errors that stayed flat from 0.8B to 4B in scouting ([ADR 0002](../docs/adr/0002-test-labels-never-edited.md)) were mostly label noise: 4B gets 243
+Removing the unsound rows raises every model by 9 to 13 points, and the 2B-to-4B gap grows from 3.6 to
+5.0 points. The wrong-argument errors that stayed flat from 0.8B to 4B in scouting ([ADR 0002](../docs/adr/0002-test-labels-never-edited.md)) were mostly label noise: 4B gets 242
 of the 287 ambiguous rows wrong, and 87 of the 88 wrong ones.
+
+The audit picked its rows from an earlier run of these baselines, whose outputs were lost; the
+`models_wrong` column of `data/audit/test_labels.csv` comes from that run. The scores above are from
+the official runs, which differ from it by at most 0.4 points on test-clean (batched greedy decoding
+is not exactly deterministic). Because only rows some model got wrong were audited, `test-clean`
+depends on that earlier run. In the official runs 740 rows have every model right (742 above), and
+25 rows that some model gets wrong were never audited and count as sound (the 0.8B gets 18 of them
+wrong, the 2B 3, the 4B 4). Read by hand, they are run-to-run slips with sound labels: malformed
+JSON, a missing `"name"`, a dropped second call. Two hinge on argument types (6299: an id as a
+string; 16520: a CNPJ without punctuation). Dropping all 25 would move the test-clean gap from
+22.0 to 21.4 points, so ±0.6 bounds their effect.
 
 ## What makes a label unsound
 

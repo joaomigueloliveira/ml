@@ -43,11 +43,11 @@ Baselines (#10), strict exact match with 95% intervals. Full tables, slices and 
 
 | Model | Role | Test | Test-clean | BFCL (unseen tools) |
 |---|---|---:|---:|---:|
-| Qwen3.5-0.8B | student | 46.4 [44.2, 48.5] | 55.1 [52.6, 57.5] | 64.8 [61.8, 67.7] |
-| Qwen3.5-2B | teacher | 65.3 [63.2, 67.4] | 76.9 [74.8, 78.9] | 82.7 [80.2, 84.9] |
-| Qwen3.5-4B | reference | 69.0 [67.0, 71.0] | 82.2 [80.3, 84.0] | 82.7 [80.2, 84.9] |
+| Qwen3.5-0.8B | student | 46.2 [44.0, 48.4] | 54.8 [52.3, 57.2] | 64.5 [61.5, 67.4] |
+| Qwen3.5-2B | teacher | 65.1 [63.0, 67.2] | 76.8 [74.7, 78.8] | 82.7 [80.2, 84.9] |
+| Qwen3.5-4B | reference | 68.8 [66.7, 70.7] | 81.8 [79.8, 83.6] | 82.7 [80.2, 84.9] |
 
-The gap to close is 21.8 points on test-clean. Training results: _in progress_.
+The gap to close is 22.0 points on test-clean. Training results: _in progress_.
 
 Training curves and eval runs, the baselines included, are logged to the public W&B project
 [joaomigueloliveira30/qwen-function-calling-distillation](https://forge.coreweave.com/wandb/joaomigueloliveira30/qwen-function-calling-distillation).
