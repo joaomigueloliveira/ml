@@ -1,6 +1,7 @@
 """Official baselines report (issue #10): results/baselines.json and results/baselines.md from runs.
 
 uv run fc-report    # reads runs/eval-{test,bfcl}-Qwen_Qwen3.5-{0.8B,2B,4B}
+uv run fc-report --wandb    # logs the committed results/baselines.json to W&B, one run per model
 
 Test-clean is scored from the test runs restricted to the test-clean ids, not from separate runs:
 the predictions are the same, and a second vLLM run could differ slightly because batched greedy
@@ -15,10 +16,12 @@ from typing import Any, NamedTuple
 
 from fc_distill import bfcl
 from fc_distill.data import DEFAULT_SPLITS_PATH, Example, load_split
+from fc_distill.eval_tracking import log_evals
 from fc_distill.evaluate import read_run
 from fc_distill.scoring import METRICS
 from fc_distill.slices import slice_scores
 from fc_distill.stats import mcnemar, metric_block
+from fc_distill.tracking import start_run
 
 
 class Model(NamedTuple):
@@ -283,10 +286,44 @@ def render(data: Mapping[str, Any]) -> str:
     return "\n".join(out) + "\n"
 
 
+def log_baselines(data: Mapping[str, Any], runs: Path) -> None:
+    """One W&B eval run per model, holding its test, test-clean and BFCL results as committed, so
+    training runs are compared against the official numbers rather than a rerun."""
+    for model, r in data["models"].items():
+        short = model.split("/")[-1]
+        tracker = start_run(
+            enabled=True,
+            job_type="eval",
+            group="baseline",
+            run_dir=runs / f"wandb-baseline-{short}",
+            name=f"baseline-{short}",
+            tags=["baseline", r["role"]],
+        )
+        tracker.config(
+            {
+                "model": model,
+                "role": r["role"],
+                "source": str(DEFAULT_JSON),
+                "provenance": r["provenance"],
+                "compute": {"gpu_hours": 0.0},
+            }
+        )
+        log_evals(tracker, {e: r[e] for e in ("test", "test-clean", "bfcl")})
+        tracker.finish()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--runs", type=Path, default=Path("runs"))
+    ap.add_argument(
+        "--wandb",
+        action="store_true",
+        help=f"log {DEFAULT_JSON} to Weights & Biases instead of rebuilding it",
+    )
     args = ap.parse_args()
+    if args.wandb:
+        log_baselines(json.loads(DEFAULT_JSON.read_text()), args.runs)
+        return
     data = build(args.runs)
     DEFAULT_JSON.parent.mkdir(parents=True, exist_ok=True)
     DEFAULT_JSON.write_text(json.dumps(data, indent=1) + "\n")

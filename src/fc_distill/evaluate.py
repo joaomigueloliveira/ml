@@ -4,10 +4,10 @@ non-live single-turn subset (unseen tools, fc_distill.bfcl).
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --n 500
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B   # re-score saved predictions, no GPU
-uv run fc-eval --relog runs/eval-test-Qwen_Qwen3.5-0.8B --wandb-group baseline   # log to W&B as is
 
---wandb also logs a --model or --rescore run to Weights & Biases (fc_distill.tracking). summary.json
-stays the source of truth; W&B mirrors it.
+--wandb also logs the run to Weights & Biases, as one eval run with the split's scores under
+<split>/... keys (fc_distill.eval_tracking). summary.json stays the source of truth. Official
+baselines are logged from results/ with `fc-report --wandb` instead.
 
 A run refuses to start from a working tree with uncommitted changes to tracked files, so the
 commit in its provenance identifies the code that produced it (--allow-dirty overrides).
@@ -17,7 +17,7 @@ import argparse
 import json
 import os
 import time
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NamedTuple, get_args
@@ -30,9 +30,10 @@ from fc_distill.data import (
     load_split,
     to_messages,
 )
+from fc_distill.eval_tracking import log_evals
 from fc_distill.scoring import METRICS, score, summarize
 from fc_distill.slices import slice_scores
-from fc_distill.tracking import Tracker, data_provenance, git_state, hub_revision, start_run
+from fc_distill.tracking import data_provenance, git_state, hub_revision, start_run
 
 SPLITS = (*get_args(EvalSplit), "bfcl")
 
@@ -61,12 +62,6 @@ def parse_args() -> argparse.Namespace:
         metavar="RUN_DIR",
         help="re-score a saved run's predictions.jsonl and rewrite its summary (no model needed)",
     )
-    ap.add_argument(
-        "--relog",
-        type=Path,
-        metavar="RUN_DIR",
-        help="log a saved run's summary.json to W&B unchanged (implies --wandb)",
-    )
     ap.add_argument("--wandb", action="store_true", help="log the run to Weights & Biases")
     ap.add_argument(
         "--wandb-group", default=None, help="W&B group: 'baseline', or the training arm"
@@ -86,8 +81,8 @@ def parse_args() -> argparse.Namespace:
         "--allow-dirty", action="store_true", help="run even with uncommitted changes (recorded)"
     )
     args = ap.parse_args()
-    if sum(x is not None for x in (args.model, args.rescore, args.relog)) != 1:
-        ap.error("give exactly one of --model, --rescore or --relog")
+    if (args.model is None) == (args.rescore is None):
+        ap.error("give exactly one of --model or --rescore")
     if args.model and not args.allow_dirty and git_state()["dirty"]:
         ap.error("uncommitted changes to tracked files; commit them or pass --allow-dirty")
     return args
@@ -95,9 +90,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    if args.relog:
-        log_to_wandb(args.relog, args.wandb_group)
-        return
     if args.rescore:
         rescore(args.rescore)
         if args.wandb:
@@ -146,6 +138,11 @@ def main() -> None:
         log_to_wandb(out, args.wandb_group)
 
 
+# Summary keys that describe the run rather than score it: the W&B config, where runs can be
+# filtered by them.
+CONFIG_KEYS = ("model", "split", "provenance", "rescored_by")
+
+
 def log_to_wandb(run_dir: Path, group: str | None) -> None:
     """Log a finished run's summary.json to W&B as an eval run named after its directory."""
     summary = json.loads((run_dir / "summary.json").read_text())
@@ -157,7 +154,10 @@ def log_to_wandb(run_dir: Path, group: str | None) -> None:
         name=run_dir.name,
         tags=[f"split:{summary['split']}"],
     )
-    log_eval(tracker, summary)
+    tracker.config({k: summary[k] for k in CONFIG_KEYS if k in summary})
+    log_evals(
+        tracker, {summary["split"]: {k: v for k, v in summary.items() if k not in CONFIG_KEYS}}
+    )
     tracker.finish()
 
 
@@ -187,51 +187,6 @@ def write_summary(out: Path, metrics: dict[str, Any], run: dict[str, Any]) -> No
     summary = metrics | run
     (out / "summary.json").write_text(json.dumps(summary, indent=2))
     print(json.dumps(summary, indent=2))
-
-
-# Summary keys that describe the run rather than score it. They go to the W&B config, where runs
-# can be filtered by them.
-CONFIG_KEYS = ("model", "split", "provenance", "rescored_by")
-
-
-def log_eval(tracker: Tracker, summary: Mapping[str, Any]) -> None:
-    """Mirror an eval's summary.json to W&B: what produced it in the config, the scores in the run
-    summary, and every slice (BFCL: every category too) as one row of a "slices" table."""
-    tracker.config({k: summary[k] for k in CONFIG_KEYS if k in summary})
-    tracker.summary({k: v for k, v in summary.items() if k not in CONFIG_KEYS})
-    rows = [
-        {"group": g, "slice": name} | _split_intervals(block)
-        for g, name, block in _slice_blocks(summary)
-    ]
-    columns = list(dict.fromkeys(k for row in rows for k in row))
-    tracker.table("slices", columns, [[row.get(c) for c in columns] for row in rows])
-
-
-def _slice_blocks(summary: Mapping[str, Any]) -> Iterator[tuple[str, str, Mapping[str, Any]]]:
-    """(group, slice, metric block) for xLAM's slices[group][slice] and BFCL's flat slices and
-    categories, whose group is the key they sit under."""
-    for top in ("slices", "categories"):
-        for name, value in summary.get(top, {}).items():
-            if "n" in value:
-                yield top, name, value
-            else:
-                for slice_name, block in value.items():
-                    yield name, slice_name, block
-
-
-def _split_intervals(block: Mapping[str, Any]) -> dict[str, Any]:
-    """A metric block with each `<metric>_ci` interval split into `<metric>_lo` and `_hi` (None for
-    an empty slice, whose interval is None)."""
-    out: dict[str, Any] = {}
-    for k, v in block.items():
-        if k.endswith("_ci"):
-            out[k.removesuffix("_ci") + "_lo"], out[k.removesuffix("_ci") + "_hi"] = v or (
-                None,
-                None,
-            )
-        else:
-            out[k] = v
-    return out
 
 
 def read_run(run_dir: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:

@@ -74,14 +74,16 @@ CI and offline runs need no account. To turn it on, log in once with `uv run wan
 `--wandb`:
 
 ```bash
-uv run fc-eval --model Qwen/Qwen3.5-0.8B --split test --wandb --wandb-group baseline
-uv run fc-eval --relog runs/eval-test-Qwen_Qwen3.5-0.8B --wandb-group baseline   # log a saved run
+uv run fc-eval --model Qwen/Qwen3.5-0.8B --split validation --wandb   # one eval run per split
+uv run fc-report --wandb          # the official baselines, one run per model, from results/
 ```
 
 `WANDB_MODE=offline` keeps the run local (`wandb sync` uploads it later), and `WANDB_PROJECT` /
 `WANDB_ENTITY` point it at another project. Trainers log through the same helper,
-`fc_distill.tracking`, with GPU-hours (the teacher's included) as the x-axis. W&B findings and
-design choices: [`docs/wandb.md`](docs/wandb.md).
+`fc_distill.tracking`, with GPU-hours (the teacher's included) as the x-axis. Every eval run uses
+the same flat keys (`test_clean/exact`, `bfcl/slice/simple/exact`, ...), so runs compare in one
+table. W&B findings, the key schema and what trainers log: [`docs/wandb.md`](docs/wandb.md),
+[`docs/wandb-dashboard.md`](docs/wandb-dashboard.md).
 
 ## Development
 
@@ -110,7 +112,8 @@ src/fc_distill/
   bfcl.py       BFCL unseen-tools subset: loading, spec conversion, scoring
   slices.py     per-slice scores: call pattern, distractor tools, argument source
   report.py     baselines report with intervals and McNemar tests (fc-report)
-  tracking.py   W&B tracking shared by trainers and fc-eval --wandb; GPU-hour accounting
+  tracking.py   W&B tracking shared by trainers and evals; GPU-hour accounting, provenance
+  eval_tracking.py  how eval results are laid out in W&B (flat keys, slices table)
 notebooks/      01_dataset.ipynb: the dataset story and the split
 tests/          unit tests (CPU only)
 data/           committed split ids and the audit labels

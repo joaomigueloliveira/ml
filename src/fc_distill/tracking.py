@@ -208,6 +208,7 @@ def start_run(
 
     The W&B run id is kept in `run_dir/wandb_run_id`, so starting again from the same directory
     (a resumed training run, a re-logged eval) continues that run instead of making a new one.
+    W&B never reuses a deleted run's id, so deleting a run in the UI means deleting that file too.
 
     A trainer opens its run before `trainer.train()` with `report_to="wandb"`: the HF callback
     reuses the open run and adds its own arguments to the config.

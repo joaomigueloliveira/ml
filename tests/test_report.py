@@ -7,6 +7,7 @@ import pytest
 from fc_distill import report
 from fc_distill.report import MODELS, build, render
 from tests.factories import make_example
+from tests.fakes import FakeTracker
 
 
 def _write_run(path: Path, records: list[dict[str, Any]], summary: dict[str, Any]) -> None:
@@ -61,3 +62,57 @@ def test_build_scores_test_clean_from_the_test_run_and_renders(
     md = render(data)
     assert "## Starting line for Phase 2" in md
     assert "| Qwen/Qwen3.5-2B | teacher |" in md
+
+
+def test_wandb_logs_one_run_per_model_from_the_committed_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    xlam = {"n": 2, "exact": 0.5, "exact_ci": [0.1, 0.9]}
+    results = {
+        "models": {
+            "Qwen/Qwen3.5-0.8B": {
+                "role": "student",
+                "test": xlam,
+                "test-clean": xlam,
+                "bfcl": {"overall": xlam},
+                "provenance": {"test": {"commit": "a"}, "bfcl": {"commit": "b"}},
+            }
+        },
+        "mcnemar": [],
+    }
+    path = tmp_path / "baselines.json"
+    path.write_text(json.dumps(results))
+    opened: list[dict[str, Any]] = []
+    trackers: list[FakeTracker] = []
+
+    def start_run(**kwargs: Any) -> FakeTracker:
+        opened.append(kwargs)
+        trackers.append(FakeTracker())
+        return trackers[-1]
+
+    monkeypatch.setattr(report, "start_run", start_run)
+    monkeypatch.setattr(report, "DEFAULT_JSON", path)
+    monkeypatch.setattr("sys.argv", ["fc-report", "--wandb", "--runs", str(tmp_path / "runs")])
+    report.main()
+    assert opened == [
+        {
+            "enabled": True,
+            "job_type": "eval",
+            "group": "baseline",
+            "run_dir": tmp_path / "runs" / "wandb-baseline-Qwen3.5-0.8B",
+            "name": "baseline-Qwen3.5-0.8B",
+            "tags": ["baseline", "student"],
+        }
+    ]
+    (tracker,) = trackers
+    assert tracker.configured == {
+        "model": "Qwen/Qwen3.5-0.8B",
+        "role": "student",
+        "source": str(path),
+        "provenance": {"test": {"commit": "a"}, "bfcl": {"commit": "b"}},
+        "compute": {"gpu_hours": 0.0},
+    }
+    assert tracker.summarised["test_clean/exact"] == 0.5
+    assert tracker.summarised["bfcl/exact_hi"] == 0.9
+    assert tracker.finished
+    assert json.loads(path.read_text()) == results  # logging never rewrites the results

@@ -284,8 +284,8 @@ Source: [HF/integrations/integration_utils.py](https://github.com/huggingface/tr
 > base dependency (it is never imported while logging is off); no adapter uploads, so eval runs
 > link to checkpoints by path; validation time and shared teacher-generation time count toward
 > the GPU-hour budget, with the shared time split across the runs that use it; and the #10
-> baselines are re-logged with `fc-eval --relog`, which mirrors `summary.json` unchanged, rather
-> than `--rescore`, which would rewrite the official runs.
+> baselines are logged from `results/baselines.json` with `fc-report --wandb` (one run per model,
+> see docs/wandb-dashboard.md), not from the saved runs, which a later rerun overwrote.
 
 **Minimal feature set:** `init` (project / group / job_type / tags / config), `run.log` + exact-name
 `define_metric` for the GPU-hours axis, `run.summary` for one-shot evals, one `wandb.Table` for
