@@ -1,7 +1,7 @@
 """Label audit of the test split (issue #8, ADR 0002). Rubric: docs/label-audit.md.
 
 Every test row that at least one model gets wrong is audited. Each audited row gets a verdict on its
-gold label: `model_wrong` (the label is sound), `label_ambiguous` or `label_wrong`. `test-clean` is
+gold label: `label_sound`, `label_ambiguous` or `label_wrong`. `test-clean` is
 test minus the ambiguous and wrong rows.
 
 uv run fc-audit prepare   # write data/audit/test_labels.csv: rows to audit, pre-tags, auto verdicts
@@ -29,7 +29,7 @@ from fc_distill.quality import (
 )
 from fc_distill.scoring import call_multiset, parse_calls
 
-Verdict = Literal["model_wrong", "label_ambiguous", "label_wrong"]
+Verdict = Literal["label_sound", "label_ambiguous", "label_wrong"]
 VERDICTS: tuple[Verdict, ...] = get_args(Verdict)
 UNSOUND: frozenset[Verdict] = frozenset({"label_ambiguous", "label_wrong"})
 
@@ -90,7 +90,7 @@ def auto_verdict(
     if code_arguments([example]):
         return "label_wrong", "code-valued argument", AUTO + "gold argument is a Python expression"
     if predictions and all(only_defaults_differ(p, example) for p in predictions):
-        return "model_wrong", "default made explicit", AUTO + "differs only by an optional default"
+        return "label_sound", "default made explicit", AUTO + "differs only by an optional default"
     return None
 
 
@@ -214,7 +214,7 @@ def review_sheet(
         "# Label audit: blind review sheet",
         "",
         "Relabel each row against [the rubric](../docs/label-audit.md) and write the verdict "
-        "(`model_wrong`, `label_ambiguous` or `label_wrong`) into `data/audit/review.csv`. "
+        "(`label_sound`, `label_ambiguous` or `label_wrong`) into `data/audit/review.csv`. "
         "Then run `uv run fc-audit build`, which reports the disagreements.",
     ]
     for i in ids:

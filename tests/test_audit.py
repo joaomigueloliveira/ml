@@ -51,7 +51,7 @@ def test_auto_verdict_needs_every_wrong_model_to_differ_only_by_defaults():
     ex = make_example(1, params=OPTIONAL, answers=[{"name": "f", "arguments": {"x": 1}}])
     by_default = [{"name": "f", "arguments": {"x": 1, "unit": "km"}}]
     wrong_value = [{"name": "f", "arguments": {"x": 2}}]
-    assert auto_verdict(ex, [by_default])[:2] == ("model_wrong", "default made explicit")  # type: ignore[index]
+    assert auto_verdict(ex, [by_default])[:2] == ("label_sound", "default made explicit")  # type: ignore[index]
     assert auto_verdict(ex, [by_default, wrong_value]) is None
 
 
@@ -83,14 +83,14 @@ def test_prepare_audits_rows_any_model_gets_wrong_and_keeps_existing_verdicts():
 
 
 def test_clean_ids_drops_ambiguous_and_wrong_and_requires_every_verdict():
-    labels = {1: _row(1, "model_wrong"), 2: _row(2, "label_ambiguous"), 3: _row(3, "label_wrong")}
+    labels = {1: _row(1, "label_sound"), 2: _row(2, "label_ambiguous"), 3: _row(3, "label_wrong")}
     assert clean_ids([0, 1, 2, 3], labels) == [0, 1]
     with pytest.raises(ValueError, match="no verdict"):
         clean_ids([0, 1], {1: _row(1)})
 
 
 def test_summary_reports_the_ceiling():
-    labels = {1: _row(1, "model_wrong", "default made explicit"), 2: _row(2, "label_wrong")}
+    labels = {1: _row(1, "label_sound", "default made explicit"), 2: _row(2, "label_wrong")}
     s = summary([0, 1, 2, 3], labels)
     assert (s["test_clean_rows"], s["ceiling"]) == (3, 0.75)
     assert s["categories"] == {"default made explicit": 1}
@@ -98,8 +98,8 @@ def test_summary_reports_the_ceiling():
 
 def test_labels_round_trip_and_reject_unknown_verdicts(tmp_path):
     path = tmp_path / "labels.csv"
-    write_labels([_row(5, "model_wrong")], path)
-    assert read_labels(path) == {5: _row(5, "model_wrong")}
+    write_labels([_row(5, "label_sound")], path)
+    assert read_labels(path) == {5: _row(5, "label_sound")}
     write_labels([_row(5, "typo")], path)  # type: ignore[list-item]
     with pytest.raises(ValueError, match="unknown verdict"):
         read_labels(path)
@@ -113,7 +113,7 @@ def test_write_test_clean_adds_the_key(tmp_path):
 
 
 def test_review_sample_is_fixed_and_drawn_from_audited_rows():
-    labels = {i: _row(i, "model_wrong") for i in range(100)}
+    labels = {i: _row(i, "label_sound") for i in range(100)}
     sample = review_sample(labels, n=30, seed=0)
     assert sample == review_sample(labels, n=30, seed=0)
     assert len(set(sample)) == 30
@@ -121,8 +121,8 @@ def test_review_sample_is_fixed_and_drawn_from_audited_rows():
 
 
 def test_agreement_separates_verdict_and_soundness_disagreements():
-    labels = {1: _row(1, "model_wrong"), 2: _row(2, "label_wrong"), 3: _row(3, "label_ambiguous")}
-    review = {1: "model_wrong", 2: "label_ambiguous", 3: "model_wrong", 4: ""}
+    labels = {1: _row(1, "label_sound"), 2: _row(2, "label_wrong"), 3: _row(3, "label_ambiguous")}
+    review = {1: "label_sound", 2: "label_ambiguous", 3: "label_sound", 4: ""}
     result = agreement(labels, review)
     assert result == {
         "reviewed": 3,
