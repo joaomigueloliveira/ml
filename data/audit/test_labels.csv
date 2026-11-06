@@ -295,191 +295,191 @@ id,verdict,category,reason,models_wrong,tags
 14161,model_wrong,,model adds the example search filter,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 14213,model_wrong,,output not valid JSON,Qwen/Qwen3.5-4B,
 14225,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
-14281,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-14282,,,,Qwen/Qwen3.5-4B,
-14361,,,,Qwen/Qwen3.5-2B,percentage
-14401,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-14503,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-14545,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,type_mismatch
-14570,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-14618,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+14281,label_ambiguous,underspecified query,landmark coordinates aren't given; gold's are one approximation,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+14282,model_wrong,,output not valid JSON,Qwen/Qwen3.5-4B,
+14361,model_wrong,convention not stated in spec,"rate passed as a decimal (0.05), as this tool does throughout the dataset",Qwen/Qwen3.5-2B,percentage
+14401,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+14503,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+14545,label_ambiguous,underspecified query,landmark coordinates aren't given; gold's are one approximation,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,type_mismatch
+14570,label_ambiguous,underspecified query,'near the Arctic Circle' fixes no coordinates,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+14618,label_ambiguous,unclear units or format,Facebook's ticker is FB (historical) or META (current),Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 14629,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B,explicit_default
-14707,,,,Qwen/Qwen3.5-0.8B,
-14761,,,,Qwen/Qwen3.5-0.8B,
-14812,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-14818,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-14830,,,,Qwen/Qwen3.5-4B,explicit_default
-14966,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-15032,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
-15070,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-15094,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+14707,model_wrong,,output missing the function name,Qwen/Qwen3.5-0.8B,
+14761,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+14812,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+14818,label_ambiguous,unclear units or format,string boolean casing ('False' vs 'false'),Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+14830,model_wrong,,output not valid JSON,Qwen/Qwen3.5-4B,explicit_default
+14966,label_ambiguous,underspecified query,landmark coordinates aren't given; gold's are one approximation,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+15032,model_wrong,default made explicit,every argument's default is stated and matches the query,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
+15070,model_wrong,,"model sets limit 1, which the query doesn't ask for",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+15094,model_wrong,,model mangles the query,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 15135,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-15146,,,,Qwen/Qwen3.5-4B,
-15151,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-15154,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-15183,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+15146,label_ambiguous,unclear units or format,URL with or without 'https://',Qwen/Qwen3.5-4B,
+15151,label_wrong,wrong value,second call's cursor is a placeholder 'cursor012'; it depends on the first call's result,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+15154,label_ambiguous,unclear units or format,"'less than 10,000' as max 9999 or 10000",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+15183,label_ambiguous,unclear units or format,resort 'Aspen' or 'Aspen Ski Resort',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 15208,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
-15238,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-15266,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-15332,,,,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-15350,,,,Qwen/Qwen3.5-0.8B,
-15425,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-15433,,,,Qwen/Qwen3.5-2B,
-15539,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
-15792,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
-15906,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-16094,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
-16116,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+15238,label_ambiguous,underspecified query,boards aren't fully given; gold invents a cyclic layout,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+15266,label_wrong,wrong value,"spec asks for ISO 3166-1 alpha-2; the UK's code is gb, not uk",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+15332,label_ambiguous,underspecified query,"gold adds month '9', which the query doesn't ask for",Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+15350,model_wrong,,model drops calls,Qwen/Qwen3.5-0.8B,
+15425,label_ambiguous,unclear units or format,date format notation (strftime vs 'MM/DD/YYYY') isn't defined,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+15433,model_wrong,,output not valid JSON,Qwen/Qwen3.5-2B,
+15539,label_ambiguous,unclear units or format,country code casing; the spec default is lowercase,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
+15792,label_ambiguous,several fitting tools,email_id and check_email both validate emails,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
+15906,label_ambiguous,unclear units or format,keyword casing; the spec default is lowercase 'asia',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+16094,model_wrong,,model drops a call or makes none,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
+16116,model_wrong,default made explicit,factor's default is stated in its description,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 16208,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-16327,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-16411,,,,Qwen/Qwen3.5-0.8B,percentage
-16441,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+16327,label_wrong,wrong value,address '0x123...' is a truncated placeholder; the query gives none,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+16411,model_wrong,,model copies the example population,Qwen/Qwen3.5-0.8B,percentage
+16441,model_wrong,,6758 is Sony's securities code,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 16498,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-16563,,,,Qwen/Qwen3.5-0.8B,
-16579,,,,Qwen/Qwen3.5-2B,
-16602,,,,Qwen/Qwen3.5-0.8B,
-16623,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-16649,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-16663,,,,Qwen/Qwen3.5-0.8B,
-16664,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-16766,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,type_mismatch;explicit_default
-16769,,,,Qwen/Qwen3.5-0.8B,
-16892,,,,Qwen/Qwen3.5-0.8B,
+16563,model_wrong,,query asks for Amazon products; model uses the other tool,Qwen/Qwen3.5-0.8B,
+16579,model_wrong,,output not valid JSON,Qwen/Qwen3.5-2B,
+16602,model_wrong,,label copies 'New York City' from the query,Qwen/Qwen3.5-0.8B,
+16623,label_ambiguous,unclear units or format,country casing; the spec example is lowercase,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+16649,model_wrong,,"model sets the word limit to 10, which the query doesn't ask for",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+16663,model_wrong,,output missing the function name,Qwen/Qwen3.5-0.8B,
+16664,model_wrong,,model adds verbose or uses a tool without a year filter,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+16766,label_ambiguous,underspecified query,Sydney Observatory coordinates and elevation aren't given,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,type_mismatch;explicit_default
+16769,model_wrong,,output missing the function name,Qwen/Qwen3.5-0.8B,
+16892,model_wrong,,model drops the password call,Qwen/Qwen3.5-0.8B,
 16908,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-2B,
-16941,,,,Qwen/Qwen3.5-2B,
-17003,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-17048,,,,Qwen/Qwen3.5-0.8B,percentage
-17153,,,,Qwen/Qwen3.5-2B,
+16941,label_ambiguous,underspecified query,search text can be composed several reasonable ways,Qwen/Qwen3.5-2B,
+17003,label_ambiguous,underspecified query,movie id isn't given; gold uses the title as the id,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+17048,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,percentage
+17153,model_wrong,,output not valid JSON,Qwen/Qwen3.5-2B,
 17325,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B,explicit_default
-17359,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-17380,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-17412,,,,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-17414,,,,Qwen/Qwen3.5-0.8B,
-17511,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
-17589,,,,Qwen/Qwen3.5-0.8B,
-17619,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,type_mismatch
-17632,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-17649,,,,Qwen/Qwen3.5-0.8B,
-17652,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+17359,model_wrong,,Al-Waqi'a is surah 56,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+17380,label_ambiguous,underspecified query,search text can be composed several reasonable ways,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+17412,label_ambiguous,unclear units or format,calendar name casing; gold could also set is_from,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+17414,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+17511,model_wrong,,model drops page or passes it as a string,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
+17589,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+17619,label_ambiguous,unclear units or format,'no specific type' as null or omitted,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,type_mismatch
+17632,model_wrong,,model copies the example domain id,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+17649,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+17652,model_wrong,,model drops the current-season call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 17663,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-17740,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-17745,,,,Qwen/Qwen3.5-0.8B,
-17776,,,,Qwen/Qwen3.5-0.8B,
-17867,,,,Qwen/Qwen3.5-0.8B,
-17875,,,,Qwen/Qwen3.5-0.8B,
-17884,,,,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-17979,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-18002,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-18022,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-18030,,,,Qwen/Qwen3.5-0.8B,
-18049,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-18058,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+17740,label_ambiguous,unclear units or format,"symbols are codes (spec example BRENTOIL); gold passes names 'Gold,Silver,Oil'",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+17745,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+17776,model_wrong,,model drops calls,Qwen/Qwen3.5-0.8B,
+17867,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+17875,model_wrong,,output missing the function name,Qwen/Qwen3.5-0.8B,
+17884,label_ambiguous,unclear units or format,country code casing; the spec example is lowercase,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+17979,label_ambiguous,underspecified query,callback name isn't given; any name is as good as gold's,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+18002,label_ambiguous,unclear units or format,"lat/lon declared int; gold truncates to 34/-118, the precise value is equally reasonable",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+18022,model_wrong,,model invents a model name,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+18030,model_wrong,,model drops the aluminum call,Qwen/Qwen3.5-0.8B,
+18049,label_ambiguous,underspecified query,review text and IP aren't given; gold invents both,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+18058,label_ambiguous,underspecified query,identifier should come from auto-complete; gold passes 'London',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 18078,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-18174,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-18315,,,,Qwen/Qwen3.5-0.8B,
-18341,,,,Qwen/Qwen3.5-0.8B,
-18424,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+18174,label_ambiguous,unclear units or format,LinkedIn URL with or without the trailing slash,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+18315,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+18341,model_wrong,,model uses a wrong argument name,Qwen/Qwen3.5-0.8B,
+18424,label_ambiguous,unclear units or format,"city 'Berlin' or 'Berlin, Germany'",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 18540,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-2B,
-18638,,,,Qwen/Qwen3.5-0.8B,
-18650,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+18638,label_ambiguous,underspecified query,search text 'London' or 'London postcodes',Qwen/Qwen3.5-0.8B,
+18650,label_ambiguous,unclear units or format,"coordinate separator: the spec example uses a space, gold uses a comma",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 18657,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-18687,,,,Qwen/Qwen3.5-0.8B,
-18698,,,,Qwen/Qwen3.5-0.8B,
-18733,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
-18881,,,,Qwen/Qwen3.5-0.8B,
+18687,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+18698,model_wrong,,model drops calls,Qwen/Qwen3.5-0.8B,
+18733,label_ambiguous,unclear units or format,symbol casing; the spec example is lowercase,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
+18881,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
 18911,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-2B,explicit_default
-18984,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-19015,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-19018,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-19035,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-19088,,,,Qwen/Qwen3.5-4B,
-19122,,,,Qwen/Qwen3.5-0.8B,
-19190,,,,Qwen/Qwen3.5-0.8B,
+18984,model_wrong,,model uses a wrong symbol or drops a call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+19015,label_ambiguous,unclear units or format,lat/lon declared int; gold truncates to 40/-74,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+19018,model_wrong,,only local_weather_api takes a day count; model adds lang or picks the 14-day tool,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+19035,label_wrong,wrong value,gold invents product ids for 'the newest smartphone'; the query gives none,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+19088,model_wrong,,output not valid JSON,Qwen/Qwen3.5-4B,
+19122,model_wrong,,model drops page 5,Qwen/Qwen3.5-0.8B,
+19190,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
 19254,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B,
-19261,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-19342,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-19395,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
-19412,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-19425,,,,Qwen/Qwen3.5-0.8B,
-19427,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-19452,,,,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-19524,,,,Qwen/Qwen3.5-0.8B,
-19703,,,,Qwen/Qwen3.5-4B,explicit_default
-19725,,,,Qwen/Qwen3.5-0.8B,
-19772,,,,Qwen/Qwen3.5-0.8B,
-19805,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-19806,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-19881,,,,Qwen/Qwen3.5-2B,
-19898,,,,Qwen/Qwen3.5-4B,
-19983,,,,Qwen/Qwen3.5-2B,
+19261,label_ambiguous,underspecified query,reason wording ('laziness' vs 'he is lazy') is free text,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+19342,label_wrong,wrong value,"spec asks for a two-letter country code; the UK's is GB, not UK",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+19395,model_wrong,,model drops a call or emits invalid JSON,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
+19412,label_ambiguous,underspecified query,'over the last 30 days' fixes neither time_period nor outputsize,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+19425,model_wrong,,query gives the token as 'Bearer 987654321'; model drops 'Bearer',Qwen/Qwen3.5-0.8B,
+19427,label_ambiguous,underspecified query,'names in English' may also need languagecode=en,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+19452,model_wrong,,model changes the keywords,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+19524,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+19703,label_ambiguous,unclear units or format,CNPJ with or without punctuation; the spec example is digits only,Qwen/Qwen3.5-4B,explicit_default
+19725,model_wrong,,model passes 'None' strings,Qwen/Qwen3.5-0.8B,
+19772,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+19805,label_wrong,wrong value,excluded sources are placeholders ('example3.com'); the query names none,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+19806,label_ambiguous,underspecified query,store URL isn't given; any URL is as good as gold's,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+19881,model_wrong,,output not valid JSON,Qwen/Qwen3.5-2B,
+19898,model_wrong,,output not a JSON list,Qwen/Qwen3.5-4B,
+19983,model_wrong,,model passes the id as a string,Qwen/Qwen3.5-2B,
 20020,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B,explicit_default
-20109,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,missing_required
-20134,,,,Qwen/Qwen3.5-0.8B,
-20201,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-20236,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-20286,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-20309,,,,Qwen/Qwen3.5-0.8B,explicit_default
-20372,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-20415,,,,Qwen/Qwen3.5-4B,type_mismatch
-20531,,,,Qwen/Qwen3.5-0.8B,
-20644,,,,Qwen/Qwen3.5-0.8B,
-20722,,,,Qwen/Qwen3.5-2B,
-20745,,,,Qwen/Qwen3.5-4B,
-20764,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-20791,,,,Qwen/Qwen3.5-0.8B,
-20847,,,,Qwen/Qwen3.5-2B,
-20874,,,,Qwen/Qwen3.5-0.8B,
-20892,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-20909,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
-20982,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-20987,,,,Qwen/Qwen3.5-0.8B,
-21021,,,,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-21101,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-21327,,,,Qwen/Qwen3.5-0.8B,
-21399,,,,Qwen/Qwen3.5-0.8B,
-21415,,,,Qwen/Qwen3.5-0.8B,
-21458,,,,Qwen/Qwen3.5-2B,explicit_default
-21547,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-21572,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-21675,,,,Qwen/Qwen3.5-4B,
-21699,,,,Qwen/Qwen3.5-0.8B,explicit_default
-21741,,,,Qwen/Qwen3.5-0.8B,
-21859,,,,Qwen/Qwen3.5-0.8B,
-22019,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+20109,model_wrong,default made explicit,sortby and pagesize defaults are stated in their descriptions,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,missing_required
+20134,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+20201,model_wrong,,gold has London's coordinates; model gets the longitude wrong,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+20236,model_wrong,,model sets outputsize 15,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+20286,model_wrong,,model splits into three calls or drops random=false,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+20309,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,explicit_default
+20372,model_wrong,,"model answers instead of calling, or drops a call",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+20415,model_wrong,,model mangles coordinates,Qwen/Qwen3.5-4B,type_mismatch
+20531,model_wrong,,model passes the interval and the boolean as strings,Qwen/Qwen3.5-0.8B,
+20644,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+20722,model_wrong,,output not valid JSON,Qwen/Qwen3.5-2B,
+20745,model_wrong,,output not valid JSON,Qwen/Qwen3.5-4B,
+20764,model_wrong,default made explicit,"query states the factor 1e9, which is the default",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+20791,model_wrong,,output missing function names,Qwen/Qwen3.5-0.8B,
+20847,model_wrong,,output not valid JSON,Qwen/Qwen3.5-2B,
+20874,model_wrong,,model makes three single-color calls,Qwen/Qwen3.5-0.8B,
+20892,model_wrong,default made explicit,analysis_mode 'static' is the default stated in the description,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+20909,label_ambiguous,unclear units or format,ticker casing; the spec example is lowercase 'aapl',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
+20982,model_wrong,,model drops fresh=1 for 'latest',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+20987,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+21021,label_wrong,wrong value,the UK's country code is GB; gold passes UK,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+21101,model_wrong,,model drops the second list,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+21327,model_wrong,,model answers instead of calling,Qwen/Qwen3.5-0.8B,
+21399,model_wrong,,model drops the order call,Qwen/Qwen3.5-0.8B,
+21415,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+21458,model_wrong,,model drops pull_type=2 for 'load more',Qwen/Qwen3.5-2B,explicit_default
+21547,model_wrong,default made explicit,num_sides 6 is the default stated in the description,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+21572,label_ambiguous,underspecified query,filter key for the minimum floor price isn't defined,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+21675,model_wrong,,model produced no call,Qwen/Qwen3.5-4B,
+21699,model_wrong,,model puts the id in the wrong argument,Qwen/Qwen3.5-0.8B,explicit_default
+21741,model_wrong,,model drops the factorization call,Qwen/Qwen3.5-0.8B,
+21859,label_ambiguous,unclear units or format,available field names are cut off in the spec,Qwen/Qwen3.5-0.8B,
+22019,label_wrong,wrong value,hotel_id 12345 is a placeholder for the Hilton; city_id 'Tokyo' isn't an id,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 22044,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
-22163,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-22168,,,,Qwen/Qwen3.5-4B,
-22184,,,,Qwen/Qwen3.5-0.8B,
-22226,,,,Qwen/Qwen3.5-0.8B,
-22410,,,,Qwen/Qwen3.5-0.8B,
-22414,,,,Qwen/Qwen3.5-0.8B,
-22427,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
-22456,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-22464,,,,Qwen/Qwen3.5-0.8B,
-22551,,,,Qwen/Qwen3.5-0.8B,
-22564,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-22580,,,,Qwen/Qwen3.5-4B,
-22627,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+22163,label_ambiguous,unclear units or format,market id list with or without the space after the comma,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+22168,model_wrong,,output not valid JSON,Qwen/Qwen3.5-4B,
+22184,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+22226,model_wrong,,model drops the motorcycles call,Qwen/Qwen3.5-0.8B,
+22410,model_wrong,,output missing the function name,Qwen/Qwen3.5-0.8B,
+22414,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+22427,model_wrong,default made explicit,language 'en' is the default stated in the description and what the query asks for,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
+22456,label_ambiguous,unclear units or format,flag name casing; the spec example is lowercase,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+22464,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+22551,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+22564,model_wrong,,model drops calls,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+22580,model_wrong,,output not valid JSON,Qwen/Qwen3.5-4B,
+22627,label_ambiguous,unclear units or format,lat/lon declared int; gold truncates to 37/-122,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 22640,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B,
-22646,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+22646,label_ambiguous,unclear units or format,"race location 'Italy', 'italy' or 'monza'; the spec example is lowercase",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 22666,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B,explicit_default
-22681,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-22834,,,,Qwen/Qwen3.5-0.8B,
-22839,,,,Qwen/Qwen3.5-4B,
-22843,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-22850,,,,Qwen/Qwen3.5-0.8B,
+22681,model_wrong,,model sets pagesize 100,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+22834,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+22839,model_wrong,,model produced no call,Qwen/Qwen3.5-4B,
+22843,label_ambiguous,underspecified query,'good IMDb rating' fixes no min/max rating,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+22850,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,
 22857,model_wrong,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-2B,
-22898,,,,Qwen/Qwen3.5-0.8B,
-22970,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
-23013,,,,Qwen/Qwen3.5-0.8B,percentage
-23127,,,,Qwen/Qwen3.5-0.8B,
-23274,,,,Qwen/Qwen3.5-0.8B,
-23301,,,,Qwen/Qwen3.5-0.8B,
-23313,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-23413,,,,Qwen/Qwen3.5-0.8B,
-23433,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,percentage
-23448,,,,Qwen/Qwen3.5-0.8B,
-23629,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+22898,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+22970,model_wrong,default made explicit,extended's default 'true' is stated in its description,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
+23013,model_wrong,,output missing the function name,Qwen/Qwen3.5-0.8B,percentage
+23127,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+23274,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+23301,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+23313,label_ambiguous,unclear units or format,league id: the spec example is 'BUN'; gold passes 'bundesliga',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+23413,model_wrong,,model drops the second call,Qwen/Qwen3.5-0.8B,
+23433,label_wrong,wrong value,query and spec example both say 'x^5'-style; gold rewrites it to 'x**5',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,percentage
+23448,model_wrong,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+23629,model_wrong,,model uses rates for the first conversion,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 23708,,,,Qwen/Qwen3.5-4B,explicit_default
 23729,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 23771,,,,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
