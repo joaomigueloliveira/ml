@@ -49,6 +49,10 @@ Baselines (#10), strict exact match with 95% intervals. Full tables, slices and 
 
 The gap to close is 21.8 points on test-clean. Training results: _in progress_.
 
+Training curves and eval runs, the baselines included, are logged to the public W&B project
+[joaomigueloliveira30/qwen-function-calling-distillation](https://forge.coreweave.com/wandb/joaomigueloliveira30/qwen-function-calling-distillation).
+`results/` stays the source of truth; W&B mirrors it.
+
 ## Quickstart
 
 Requires [uv](https://docs.astral.sh/uv/), an NVIDIA GPU for inference/training, and access to the
@@ -62,6 +66,22 @@ uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl         # unseen tools
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B       # re-score a saved run, no GPU
 uv run fc-report                  # results/baselines.{json,md} from the test and BFCL runs
 ```
+
+### Experiment tracking
+
+Logging to [Weights & Biases](https://forge.coreweave.com/wandb) is off unless asked for, so tests,
+CI and offline runs need no account. To turn it on, log in once with `uv run wandb login`, then pass
+`--wandb`:
+
+```bash
+uv run fc-eval --model Qwen/Qwen3.5-0.8B --split test --wandb --wandb-group baseline
+uv run fc-eval --relog runs/eval-test-Qwen_Qwen3.5-0.8B --wandb-group baseline   # log a saved run
+```
+
+`WANDB_MODE=offline` keeps the run local (`wandb sync` uploads it later), and `WANDB_PROJECT` /
+`WANDB_ENTITY` point it at another project. Trainers log through the same helper,
+`fc_distill.tracking`, with GPU-hours (the teacher's included) as the x-axis. W&B findings and
+design choices: [`docs/wandb.md`](docs/wandb.md).
 
 ## Development
 
@@ -90,10 +110,11 @@ src/fc_distill/
   bfcl.py       BFCL unseen-tools subset: loading, spec conversion, scoring
   slices.py     per-slice scores: call pattern, distractor tools, argument source
   report.py     baselines report with intervals and McNemar tests (fc-report)
+  tracking.py   W&B tracking shared by trainers and fc-eval --wandb; GPU-hour accounting
 notebooks/      01_dataset.ipynb: the dataset story and the split
 tests/          unit tests (CPU only)
 data/           committed split ids and the audit labels
-docs/           dataset card, ADRs, the label-audit rubric and the BFCL notes
+docs/           dataset card, ADRs, the label-audit rubric, the BFCL and W&B notes
 results/        results worth keeping (label audit, baselines)
 ```
 
