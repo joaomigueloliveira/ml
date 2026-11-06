@@ -9,6 +9,7 @@ uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B   # re-score saved pre
 import argparse
 import json
 import os
+import subprocess
 import time
 from pathlib import Path
 from typing import Any, get_args
@@ -24,6 +25,7 @@ SPLITS = (*get_args(EvalSplit), "bfcl")
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--model", help="HF model id or local path")
+    ap.add_argument("--revision", default=None, help="model revision (default: latest on main)")
     ap.add_argument(
         "--rescore",
         type=Path,
@@ -69,6 +71,7 @@ def main() -> None:
 
     llm = LLM(
         model=args.model,
+        revision=args.revision,
         max_model_len=args.max_model_len,
         gpu_memory_utilization=args.gpu_mem,
         quantization=args.quantization,
@@ -95,8 +98,32 @@ def main() -> None:
         "split": args.split,
         "seconds": round(elapsed, 1),
         "output_tokens": sum(len(o.outputs[0].token_ids) for o in outputs),
+        "provenance": provenance(args),
     }
     write_summary(out, metrics, run)
+
+
+def provenance(args: argparse.Namespace) -> dict[str, Any]:
+    """What produced this run: code commit, exact model weights and decoding settings."""
+    import vllm
+    from huggingface_hub import model_info
+
+    def git(*cmd: str) -> str:
+        return subprocess.run(["git", *cmd], capture_output=True, text=True).stdout.strip()
+
+    local = Path(args.model).exists()
+    return {
+        "commit": git("rev-parse", "HEAD"),
+        "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
+        "model_revision": None if local else model_info(args.model, revision=args.revision).sha,
+        "vllm": vllm.__version__,
+        "decoding": "greedy, thinking off",
+        "max_tokens": args.max_tokens,
+        "max_model_len": args.max_model_len,
+        "max_num_seqs": args.max_num_seqs,
+        "gpu_mem": args.gpu_mem,
+        "quantization": args.quantization,
+    }
 
 
 def write_summary(out: Path, metrics: dict[str, Any], run: dict[str, Any]) -> None:
@@ -119,7 +146,7 @@ def rescore(run_dir: Path) -> None:
     else:
         by_id = {ex["id"]: ex for ex in load_split(split)}
         metrics = score_xlam([by_id[r["id"]] for r in records], texts, run_dir)
-    keep = ("model", "split", "seconds", "output_tokens")
+    keep = ("model", "split", "seconds", "output_tokens", "provenance")
     write_summary(run_dir, metrics, {k: old[k] for k in keep if k in old})
 
 
