@@ -93,7 +93,7 @@ DIMENSIONS: dict[str, tuple[Callable[[Example], str], tuple[str, ...]]] = {
 }
 
 
-def _mean_ci(values: Sequence[float]) -> tuple[float, float]:
+def mean_ci(values: Sequence[float]) -> tuple[float, float]:
     """Mean and the half-width of its normal-approximation 95% interval. For 0/1 values this is the
     usual 1.96 * sqrt(p(1-p)/n)."""
     n = len(values)
@@ -121,7 +121,7 @@ def slice_scores(
             block: dict[str, Any] = {"n": len(rows), "too_small": len(rows) < min_rows}
             for m in metrics:
                 if rows:
-                    mean, ci = _mean_ci([float(r[m]) for r in rows])
+                    mean, ci = mean_ci([float(r[m]) for r in rows])
                     block[m], block[f"{m}_ci"] = round(mean, 4), round(ci, 4)
                 else:
                     block[m] = block[f"{m}_ci"] = None

@@ -6,39 +6,39 @@ key in `data/splits.json` (`fc-eval --split test-clean`).
 
 ## Ceiling
 
-**1,626 of the 2,000 test rows (81.3%) have a sound label.** That's the highest strict exact match a
+**1,625 of the 2,000 test rows (81.25%) have a sound label.** That's the highest strict exact match a
 model that's always right could score on raw test. The other 374 rows have a gold label that is
-ambiguous (286) or wrong (88), and `test-clean` leaves them out.
+ambiguous (287) or wrong (88), and `test-clean` leaves them out.
 
 | | Rows |
 |---|---:|
 | Test | 2,000 |
-| Every model right (assumed sound) | 751 |
-| Audited (at least one model wrong) | 1,249 |
-| Label sound | 875 |
-| Label ambiguous | 286 |
+| Every model right (assumed sound) | 746 |
+| Audited (at least one model wrong) | 1,254 |
+| Label sound | 879 |
+| Label ambiguous | 287 |
 | Label wrong | 88 |
-| **`test-clean`** | **1,626** |
+| **`test-clean`** | **1,625** |
 
 ## Scores
 
-Strict exact match, greedy decoding, thinking off (`fc-eval --split test`).
+The official baseline runs (#10, [`baselines.md`](baselines.md)), strict exact match:
 
 | Model | Test | `test-clean` |
 |---|---:|---:|
 | Qwen3.5-0.8B (student) | 46.4 | 55.1 |
 | Qwen3.5-2B (teacher) | 65.3 | 76.9 |
-| Qwen3.5-4B | 69.1 | 82.2 |
+| Qwen3.5-4B | 68.7 | 81.7 |
 
-Removing the unsound rows raises every model by 9 to 13 points, and the 2B-to-4B gap grows from 3.8 to
-5.3 points. The wrong-argument errors that stayed flat from 0.8B to 4B in scouting ([ADR 0002](../docs/adr/0002-test-labels-never-edited.md)) were mostly label noise: 4B gets 243
-of the 286 ambiguous rows wrong, and 87 of the 88 wrong ones.
+Removing the unsound rows raises every model by 9 to 13 points, and the 2B-to-4B gap grows from 3.4 to
+4.8 points. The wrong-argument errors that stayed flat from 0.8B to 4B in scouting ([ADR 0002](../docs/adr/0002-test-labels-never-edited.md)) were mostly label noise: 4B gets 243
+of the 287 ambiguous rows wrong, and 87 of the 88 wrong ones.
 
 ## What makes a label unsound
 
 | Category | Rows | Example |
 |---|---:|---|
-| Unclear units or format | 188 | country `UK` vs `GB`; `.jpg` vs `jpg`; casing when the spec example is lowercase; `9:30` as `930` or `9.5` |
+| Unclear units or format | 189 | country `UK` vs `GB`; `.jpg` vs `jpg`; casing when the spec example is lowercase; `9:30` as `930` or `9.5` |
 | Underspecified query | 90 | "last week" with no reference date; coordinates of a landmark; a search string that could be worded several ways |
 | Wrong value | 73 | placeholders (`cursor_value`, `<is_id>`, `YOUR_API_KEY`); ids and URLs made up where the query gives none (`zuid: "jkl012"`); wrong timestamps; `x**3` where the query and spec say `x^3`; missing `-` for descending order |
 | Spec violation | 8 | a string where `int`/`bool` is declared; a dict where a list is declared |
@@ -58,11 +58,14 @@ Sound labels that a strict scorer still marks wrong for an equivalent call:
 - The audit covers every row that **any** of 0.8B, 2B and 4B gets wrong, not only the teacher's
   errors as #8 first proposed. Auditing only 2B and 4B errors would have kept 17 unsound rows that only
   the student misses. That would have lowered the student's `test-clean` score by 0.6 points and
-  widened the teacher-student gap by 0.9.
+  widened the teacher-student gap by 0.8.
 - Automatic verdicts are used only where the outcome doesn't depend on which model erred:
   code-valued gold arguments (label wrong), and rows where every wrong prediction differs from gold
   only by optional defaults (sound label).
-- The remaining 1,172 rows were labelled by hand against the rubric. Model identities were hidden
+- The audited rows follow the official baseline runs (#10). Re-running the 4B there changed 9 of
+  its errors (batched greedy decoding is not perfectly deterministic): 9 new rows were labelled, 8
+  sound and 1 ambiguous, and 4 sound rows that no model misses any more left the audit.
+- The remaining 1,177 rows were labelled by hand against the rubric. Model identities were hidden
   and predictions were shown in a fixed shuffled order.
 - Repeated cases get the same verdict: a format choice the spec leaves open (casing, prefixes,
   separators, off-by-one page numbering when the spec is silent) is ambiguous every time it comes up.
@@ -98,6 +101,6 @@ checkpoint selection account for it: [ADR 0005](../docs/adr/0005-train-and-valid
 - One labeller. The 30-row review is the only check on consistency, and its disagreements were
   settled by clarifying the rubric (see Review).
 - Rows that every model gets right are assumed sound. An ambiguous label that all three models happen
-  to match stays in `test-clean`, so 81.3% is an upper bound on the sound share.
+  to match stays in `test-clean`, so 81.25% is an upper bound on the sound share.
 - "Ambiguous" is applied generously to format choices the spec leaves open. A lenient scorer (#15)
   that normalises casing and `www.`/`https://` prefixes could recover some of these rows.

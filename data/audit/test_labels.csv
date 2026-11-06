@@ -16,7 +16,7 @@ id,verdict,category,reason,models_wrong,tags
 970,label_wrong,wrong value,category id 214971 is invented; the query gives no id,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 980,label_ambiguous,unclear units or format,UK region code could be 'GB' or 'UK',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 1019,label_sound,,model produced no call,Qwen/Qwen3.5-4B,
-1109,label_sound,,model drops the second email,Qwen/Qwen3.5-0.8B,
+1109,label_sound,,model drops the second email,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
 1154,label_sound,,model drops the second company,Qwen/Qwen3.5-0.8B,
 1268,label_sound,,model uses a wrong argument name or drops a call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 1280,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
@@ -73,6 +73,7 @@ id,verdict,category,reason,models_wrong,tags
 3865,label_sound,,output missing the function name,Qwen/Qwen3.5-0.8B,
 3939,label_sound,default made explicit,offset 0 is the default stated in the description,Qwen/Qwen3.5-0.8B,
 4017,label_sound,default made explicit,search.function's default is stated in its description,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required;explicit_default
+4031,label_sound,,"correct call followed by stray text, a parse failure",Qwen/Qwen3.5-4B,explicit_default
 4065,label_sound,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 4085,label_sound,,spec asks for a URL-encoded query; gold encodes it,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 4106,label_sound,,GP is Gauteng's ISO code,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
@@ -108,7 +109,7 @@ id,verdict,category,reason,models_wrong,tags
 5378,label_sound,,output missing the function name,Qwen/Qwen3.5-0.8B,
 5407,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 5455,label_wrong,wrong value,'smaller than C' means max cup size B; gold passes C,Qwen/Qwen3.5-4B,
-5469,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+5469,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 5484,label_sound,,models add start/end dates the query doesn't fix,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
 5593,label_ambiguous,unclear units or format,string boolean 'True' vs 'true',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 5670,label_sound,default made explicit,brandid's default is stated in its description,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
@@ -177,7 +178,7 @@ id,verdict,category,reason,models_wrong,tags
 8479,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
 8500,label_sound,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,explicit_default
 8559,label_sound,,model invents region 'global',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-8564,label_sound,,output not valid JSON or ints passed as strings,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+8564,label_sound,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 8641,label_sound,,model passes strings or drops page 2,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,explicit_default
 8745,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
 8776,label_sound,,output missing function names,Qwen/Qwen3.5-0.8B,
@@ -249,7 +250,7 @@ id,verdict,category,reason,models_wrong,tags
 11881,label_ambiguous,unclear units or format,drug name casing; the spec example is lowercase,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 11902,label_wrong,wrong value,flower ids are placeholders ('sunflower_id'); the query gives none,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 11903,label_wrong,wrong value,"App Store category 6000 is Business, not Productivity (6007)",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
-11930,label_sound,,models leave out the gradient style or recolour the eyes,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,explicit_default
+11930,label_sound,,models leave out the gradient style or recolour the eyes,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 12117,label_sound,,model passes the id as a string,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 12240,label_ambiguous,unclear units or format,species casing ('domestic cat' vs 'Domestic cat'),Qwen/Qwen3.5-0.8B,
 12318,label_sound,,model uses a wrong date format,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
@@ -312,6 +313,7 @@ id,verdict,category,reason,models_wrong,tags
 14966,label_ambiguous,underspecified query,landmark coordinates aren't given; gold's are one approximation,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 15032,label_sound,default made explicit,every argument's default is stated and matches the query,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
 15070,label_sound,,"model sets limit 1, which the query doesn't ask for",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+15072,label_sound,,model returned an empty list,Qwen/Qwen3.5-4B,
 15094,label_sound,,model mangles the query,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 15135,label_sound,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 15146,label_ambiguous,unclear units or format,URL with or without 'https://',Qwen/Qwen3.5-4B,
@@ -351,7 +353,7 @@ id,verdict,category,reason,models_wrong,tags
 17048,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,percentage
 17153,label_sound,,output not valid JSON,Qwen/Qwen3.5-2B,
 17325,label_sound,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B,explicit_default
-17359,label_sound,,Al-Waqi'a is surah 56,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+17359,label_sound,,Al-Waqi'a is surah 56,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 17380,label_ambiguous,underspecified query,search text can be composed several reasonable ways,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 17412,label_ambiguous,unclear units or format,calendar name casing; gold could also set is_from,Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 17414,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
@@ -417,14 +419,13 @@ id,verdict,category,reason,models_wrong,tags
 20134,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
 20201,label_sound,,gold has London's coordinates; model gets the longitude wrong,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 20236,label_sound,,model sets outputsize 15,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
-20286,label_sound,,model splits into three calls or drops random=false,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+20286,label_sound,,model splits into three calls or drops random=false,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 20309,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,explicit_default
 20372,label_sound,,"model answers instead of calling, or drops a call",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 20415,label_sound,,model mangles coordinates,Qwen/Qwen3.5-4B,type_mismatch
 20531,label_sound,,model passes the interval and the boolean as strings,Qwen/Qwen3.5-0.8B,
 20644,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
 20722,label_sound,,output not valid JSON,Qwen/Qwen3.5-2B,
-20745,label_sound,,output not valid JSON,Qwen/Qwen3.5-4B,
 20764,label_sound,default made explicit,"query states the factor 1e9, which is the default",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 20791,label_sound,,output missing function names,Qwen/Qwen3.5-0.8B,
 20847,label_sound,,output not valid JSON,Qwen/Qwen3.5-2B,
@@ -476,7 +477,7 @@ id,verdict,category,reason,models_wrong,tags
 23274,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
 23301,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
 23313,label_ambiguous,unclear units or format,league id: the spec example is 'BUN'; gold passes 'bundesliga',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-23413,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
+23413,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
 23433,label_wrong,wrong value,query and spec example both say 'x^5'-style; gold rewrites it to 'x**5',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,percentage
 23448,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
 23629,label_sound,,model uses rates for the first conversion,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
@@ -495,7 +496,7 @@ id,verdict,category,reason,models_wrong,tags
 24249,label_sound,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 24276,label_sound,,model reverses the text itself or emits invalid JSON,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 24311,label_sound,,model drops calls,Qwen/Qwen3.5-0.8B,
-24312,label_sound,,model adds format/lang/num_of_days the query doesn't ask for,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,explicit_default
+24312,label_sound,,model adds format/lang/num_of_days the query doesn't ask for,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 24356,label_ambiguous,underspecified query,item names are free text ('bread' vs 'loaves of bread'),Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 24380,label_sound,default made explicit,"country, per_page and page defaults are stated in their descriptions",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,missing_required
 24449,label_sound,,model uses a wrong argument name,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
@@ -528,6 +529,7 @@ id,verdict,category,reason,models_wrong,tags
 25678,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
 25703,label_ambiguous,underspecified query,'last week' has no reference date,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
 25790,label_sound,,model adds min/max bounds the query doesn't ask for,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+25813,label_sound,,model returned an empty list,Qwen/Qwen3.5-4B,
 25834,label_sound,,model adds a limit the query doesn't ask for,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 25855,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 25881,label_ambiguous,unclear units or format,ISO 8601 with a space or a 'T'; both valid,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
@@ -562,17 +564,19 @@ id,verdict,category,reason,models_wrong,tags
 27456,label_sound,,tt0816692 is Interstellar; model calls other tools,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 27519,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,explicit_default
 27604,label_ambiguous,unclear units or format,Facebook ticker FB or META; region GB or UK,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
-27633,label_ambiguous,unclear units or format,a Callable can't be passed as JSON; any lambda string is a guess,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+27633,label_ambiguous,unclear units or format,a Callable can't be passed as JSON; any lambda string is a guess,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 27748,label_ambiguous,underspecified query,London coordinates at any precision are equally reasonable,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 27782,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
 27800,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
+27808,label_sound,,correct call followed by a stray closing tag,Qwen/Qwen3.5-4B,
 27813,label_ambiguous,unclear units or format,green as '008000' or '00FF00',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 27861,label_ambiguous,unclear units or format,district name could be 'Madina' or 'Madina Municipal',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 28000,label_sound,,model passes the wrong data,Qwen/Qwen3.5-0.8B,
-28140,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
+28140,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
 28184,label_ambiguous,underspecified query,"gold adds countrycodes GB and limit 5, which the query doesn't ask for",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 28236,label_sound,,output missing function names,Qwen/Qwen3.5-0.8B,
 28239,label_sound,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+28270,label_sound,,prediction fills optional 'domain' and drops required 'domains',Qwen/Qwen3.5-4B,
 28296,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
 28425,label_sound,,model drops the flatten call,Qwen/Qwen3.5-0.8B,
 28501,label_ambiguous,unclear units or format,getdata query-string format isn't defined,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
@@ -590,13 +594,14 @@ id,verdict,category,reason,models_wrong,tags
 29099,label_ambiguous,underspecified query,search text can be composed several reasonable ways,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 29105,label_sound,,output missing the function name,Qwen/Qwen3.5-0.8B,
 29107,label_ambiguous,underspecified query,'US locale and currency' may also set country=US,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+29206,label_sound,,correct call followed by a stray closing tag,Qwen/Qwen3.5-4B,
 29298,label_wrong,spec violation,txtcolor must be HTML hex; gold passes 'green' and leaves the QR colour unset,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 29299,label_ambiguous,unclear units or format,symbol casing; the spec example is lowercase,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
 29315,label_sound,,output missing function names,Qwen/Qwen3.5-0.8B,
 29328,label_sound,,model drops a call or refuses,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 29378,label_sound,default made explicit,superoffer's header defaults are stated in their descriptions,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,missing_required
 29412,label_wrong,wrong value,"1678934400000 is 02:40 UTC on March 16, not 18:30 on March 15",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-29489,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
+29489,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
 29568,label_ambiguous,underspecified query,"'latest' week isn't a date; gold omits the required week, models pass the example",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
 29850,label_sound,,model adds 'hotels' to the location query,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 29948,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
@@ -604,7 +609,7 @@ id,verdict,category,reason,models_wrong,tags
 30030,label_sound,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 30139,label_sound,,model drops the palindrome call,Qwen/Qwen3.5-0.8B,
 30190,label_sound,,model drops USD and adds BRENTOIL,Qwen/Qwen3.5-0.8B,
-30259,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
+30259,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
 30262,label_sound,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 30340,label_wrong,wrong value,API key is the placeholder 'your_api_key'; the query gives none,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 30344,label_sound,,model produced no call,Qwen/Qwen3.5-4B,
@@ -624,7 +629,7 @@ id,verdict,category,reason,models_wrong,tags
 31048,label_sound,,model drops the vowel call,Qwen/Qwen3.5-0.8B,
 31095,label_ambiguous,unclear units or format,'silver against the Euro' as base XAG or base EUR,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 31261,label_sound,,model copies the example id or makes no call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
-31345,label_sound,,model adds limit 100 and language,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,explicit_default
+31345,label_sound,,model adds limit 100 and language,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 31367,label_sound,,model adds a 'default' argument and drops the global call,Qwen/Qwen3.5-0.8B,
 31597,label_sound,,output missing the function name,Qwen/Qwen3.5-0.8B,percentage
 31622,label_wrong,spec violation,m is declared an int TMDb id; gold passes 'movie',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,type_mismatch
@@ -684,6 +689,7 @@ id,verdict,category,reason,models_wrong,tags
 33630,label_wrong,wrong value,"Inception video id isn't given; gold invents one, and search_type 5 isn't defined",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
 33659,label_sound,,model merges both languages into one call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,explicit_default
 33665,label_sound,,7 hours is 420 minutes,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+33686,label_ambiguous,unclear units or format,'page 1' vs 0-based paging; the spec default is 0 and the spec doesn't say,Qwen/Qwen3.5-4B,
 33768,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
 33775,label_ambiguous,underspecified query,'data science' and 'data analysis' could be two keywords; gold puts the second in fulldata,Qwen/Qwen3.5-0.8B,
 33819,label_sound,,model passes ints as strings,Qwen/Qwen3.5-4B,
@@ -757,7 +763,6 @@ id,verdict,category,reason,models_wrong,tags
 36991,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
 37017,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
 37022,label_sound,,model drops the query,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,type_mismatch;explicit_default
-37039,label_sound,,model produced no call,Qwen/Qwen3.5-4B,
 37112,label_sound,,gold's place id is Los Angeles; models invent or copy one,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 37133,label_ambiguous,unclear units or format,company query 'Microsoft Corporation' or 'microsoft' (spec example is a ticker),Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
 37145,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
@@ -845,7 +850,7 @@ id,verdict,category,reason,models_wrong,tags
 40800,label_sound,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 40817,label_sound,,output missing the function name,Qwen/Qwen3.5-0.8B,
 40842,label_sound,,model uses a wrong argument name,Qwen/Qwen3.5-0.8B,
-40922,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+40922,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
 40933,label_ambiguous,unclear units or format,tour code casing; the spec uses both 'ATP' and 'atp',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 40967,label_ambiguous,underspecified query,item names are free text ('apple' vs 'apples'),Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,percentage
 40974,label_wrong,wrong value,is_id is the placeholder '<is_id>',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
@@ -884,7 +889,6 @@ id,verdict,category,reason,models_wrong,tags
 42703,label_ambiguous,underspecified query,searching 'trees' or 'árboles' for Spanish results are both reasonable,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
 42775,label_ambiguous,unclear units or format,country casing; locale 'es' vs 'es_ES' (spec example 'it_IT'),Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 42850,label_sound,default made explicit,offset 0 is the default stated in the description,Qwen/Qwen3.5-4B,missing_required
-42856,label_sound,,model misspells the argument name,Qwen/Qwen3.5-4B,
 42887,label_sound,,output not valid JSON,Qwen/Qwen3.5-4B,
 42919,label_ambiguous,underspecified query,search text can be composed several reasonable ways,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 43002,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
@@ -913,6 +917,7 @@ id,verdict,category,reason,models_wrong,tags
 44099,label_sound,,DeFi protocol slugs are hyphenated,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 44101,label_sound,,model invents coordinates with the wrong sign,Qwen/Qwen3.5-0.8B,
 44144,label_sound,,model drops the second call,Qwen/Qwen3.5-0.8B,
+44163,label_sound,,model returned an empty list,Qwen/Qwen3.5-4B,
 44245,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
 44314,label_sound,,output not valid JSON,Qwen/Qwen3.5-4B,
 44356,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
@@ -929,7 +934,7 @@ id,verdict,category,reason,models_wrong,tags
 45167,label_sound,default made explicit,limit 100 is the default stated in the description,Qwen/Qwen3.5-0.8B,
 45279,label_sound,,output not valid JSON,Qwen/Qwen3.5-4B,
 45288,label_wrong,wrong value,next_cursor is the placeholder 'next_cursor_value',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-45295,label_sound,,third page of 30 is skip 60,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+45295,label_sound,,third page of 30 is skip 60,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 45338,label_sound,,model rewrites the lists,Qwen/Qwen3.5-0.8B,
 45339,label_sound,default made explicit,symbol's default '' is stated in the description,Qwen/Qwen3.5-0.8B,missing_required
 45364,label_sound,,output not valid JSON,Qwen/Qwen3.5-4B,
@@ -955,7 +960,7 @@ id,verdict,category,reason,models_wrong,tags
 46712,label_wrong,wrong value,descending order uses a '-' prefix (spec example '-breedName'); gold passes 'energy_level',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 46723,label_sound,,model drops the Toyota call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 46886,label_sound,,output missing the function name,Qwen/Qwen3.5-0.8B,
-46888,label_sound,,"model sets timestamp_first=true, which the query doesn't ask for",Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
+46888,label_sound,,"model sets timestamp_first=true, which the query doesn't ask for",Qwen/Qwen3.5-2B,explicit_default
 46949,label_sound,,model drops calls,Qwen/Qwen3.5-0.8B,
 47017,label_ambiguous,unclear units or format,raw as '1' or true (the spec accepts both); quotes default could be passed,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,type_mismatch;missing_required
 47054,label_sound,default made explicit,material 'copper' is the default stated in the description,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
@@ -1069,7 +1074,7 @@ id,verdict,category,reason,models_wrong,tags
 52038,label_sound,,"model wrote tuples, not JSON",Qwen/Qwen3.5-0.8B,
 52121,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 52125,label_wrong,wrong value,the insult target has no name; gold invents 'someone',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
-52158,label_sound,,model swaps the pair order,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
+52158,label_sound,,model swaps the pair order,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
 52164,label_sound,,output not valid JSON,Qwen/Qwen3.5-4B,
 52174,label_ambiguous,unclear units or format,city casing; the spec example is lowercase,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 52187,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
@@ -1077,6 +1082,7 @@ id,verdict,category,reason,models_wrong,tags
 52363,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
 52366,label_sound,,output not valid JSON,Qwen/Qwen3.5-4B,
 52499,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+52500,label_sound,,correct values but mismatched brackets,Qwen/Qwen3.5-4B,explicit_default
 52619,label_ambiguous,underspecified query,the city id must come from auto-complete; gold passes 'Los Angeles',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 52622,label_sound,default made explicit,permitivity's default is stated in its description,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
 52659,label_sound,,"model wrote tuples, not JSON",Qwen/Qwen3.5-0.8B,
@@ -1127,7 +1133,7 @@ id,verdict,category,reason,models_wrong,tags
 54508,label_sound,,model drops the calorie call,Qwen/Qwen3.5-0.8B,
 54513,label_sound,,model calls the plate-to-VIN tool,Qwen/Qwen3.5-2B,
 54554,label_wrong,wrong value,website is the placeholder '<URL_OF_THIRD_MUSEUM>',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,type_mismatch
-54591,label_sound,,output not a call,Qwen/Qwen3.5-0.8B,
+54591,label_sound,,output not a call,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
 54604,label_wrong,code-valued argument,auto: gold argument is a Python expression,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,code_argument;type_mismatch
 54615,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,explicit_default
 54624,label_sound,,model drops the exchange suffix,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
@@ -1162,7 +1168,6 @@ id,verdict,category,reason,models_wrong,tags
 56129,label_wrong,wrong value,the URL isn't given; gold invents 'https://www.example.com',Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 56180,label_sound,default made explicit,list_movies' defaults are stated in their descriptions,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,missing_required
 56205,label_sound,,output missing the function name,Qwen/Qwen3.5-0.8B,
-56255,label_sound,default made explicit,auto: differs only by an optional default,Qwen/Qwen3.5-4B,
 56316,label_sound,,model passes num as a string,Qwen/Qwen3.5-0.8B,
 56342,label_ambiguous,unclear units or format,date format notation (strftime vs 'YYYY-MM-DD') isn't defined,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,explicit_default
 56369,label_sound,,output not valid JSON,Qwen/Qwen3.5-4B,
@@ -1200,9 +1205,9 @@ id,verdict,category,reason,models_wrong,tags
 57598,label_sound,,output missing function names,Qwen/Qwen3.5-0.8B,
 57602,label_ambiguous,unclear units or format,"location 'New York, USA' vs the spec's 'City, ST, USA' format",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 57606,label_ambiguous,underspecified query,Example Company's URL isn't given; gold's 'https://www.example.com/' is a guess,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
-57636,label_sound,,model drops the PDF call or uses the wrong video tool,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B,
+57636,label_sound,,model drops the PDF call or uses the wrong video tool,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 57655,label_sound,,output not valid JSON,Qwen/Qwen3.5-4B,
-57661,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B,
+57661,label_sound,,output not valid JSON,Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-4B,
 57707,label_ambiguous,unclear units or format,search 'HST' or 'Hubble Space Telescope'; the query gives both,Qwen/Qwen3.5-0.8B,
 57836,label_ambiguous,unclear units or format,"city 'Berlin' or 'Berlin, Germany'",Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
 57862,label_ambiguous,unclear units or format,symbols with or without spaces (the spec example has spaces),Qwen/Qwen3.5-0.8B;Qwen/Qwen3.5-2B;Qwen/Qwen3.5-4B,
