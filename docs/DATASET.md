@@ -16,7 +16,7 @@ recorded in [`docs/adr/`](adr/); vocabulary is in [`GLOSSARY.md`](../GLOSSARY.md
 | Task | single-turn tool calling: a query and a set of tools in, a JSON list of calls out |
 | Splits | train 56,392 · validation 1,000 · test 2,000 · `test-clean` 1,625 (a subset of test) |
 | Split ids | [`data/splits.json`](../data/splits.json), loaded by `fc_distill.data.load_split` |
-| Unseen-tools eval | 1,000 rows of [BFCL](https://huggingface.co/datasets/gorilla-llm/Berkeley-Function-Calling-Leaderboard) v3, see [BFCL](#bfcl-the-unseen-tools-eval) |
+| Unseen-tools eval | 1,000 rows of BFCL v3, see [below](#bfcl-the-unseen-tools-eval) |
 
 ## Schema
 
@@ -53,7 +53,7 @@ parameters. The model sees the tools and the query through the Qwen3.5 chat temp
 
 ## Shape
 
-Figures for each of these are in the notebook (sections 2 to 4).
+Figures for each of these are inline in [the notebook](../notebooks/01_dataset.ipynb), sections 2 to 4.
 
 | | Value |
 |---|---|
@@ -84,15 +84,15 @@ parameters, such as latitudes), and 3,757 calls leave out a parameter whose type
 point at imprecise specs, not wrong answers, so neither is filtered. They are worth knowing when reading
 model errors.
 
-### 2. Duplicates, contradictions and code-valued labels
+### 2. Duplicates, contradictions and code-valued gold answers
 
 | Problem | Found | Example |
 |---|---:|---|
 | Exact duplicate rows (beyond the first copy) | 375 | |
-| Contradicting labels: same query, same tools, different answers | 21 rows in 10 groups | Bulldog as `is_id: 15` in one row and `14` in another |
+| Contradicting gold answers: same query, same tools, different answers | 21 rows in 10 groups | Bulldog as `is_id: 15` in one row and `14` in another |
 | Code-valued arguments: a Python expression where a value is declared | 269 arguments in 224 rows | `"math.pi / 2"` for a `float`, `"[0.015] * 12"` for a `List[float]` |
 
-A model can't be right on both sides of a contradiction, and a code-valued label teaches it to copy text
+A model can't be right on both sides of a contradiction, and a code-valued gold answer teaches it to copy text
 instead of computing a value.
 
 → **Every train filter, in order:**
@@ -100,11 +100,14 @@ instead of computing a value.
 | Filter | Where | Rows removed |
 |---|---|---:|
 | Exact duplicates collapsed to their first copy | all rows, before splitting | 375 |
-| Contradicting labels | train only | 20 |
+| Contradicting gold answers | train only | 20 |
 | Code-valued arguments | train only | 213 |
 
-Validation and test keep their labels as published, including 4 and 6 code-valued rows, so the numbers
-stay comparable to other xLAM results (ADR [0002](adr/0002-test-labels-never-edited.md)). No gold answer
+The train counts are below the ones found because of overlaps: of the 224 code-valued rows, 10 sit in
+validation and test and 1 is a duplicate; of the 21 contradicting rows, 1 is a duplicate.
+
+Validation and test keep their gold answers as published, including 4 and 6 code-valued rows, so the
+numbers stay comparable to other xLAM results (ADR [0002](adr/0002-test-labels-never-edited.md)). No gold answer
 is ever rewritten.
 
 ### 3. Same query, different values, across splits
@@ -115,8 +118,9 @@ generated many queries per tool, so the same sentence recurs with other values (
 
 → Rows are grouped by normalized query and whole groups go to one split at random: test 2,000,
 validation 1,000, train the rest (ADR [0001](adr/0001-train-validation-test-split.md)). **Leakage check:**
-no normalized query appears in two splits (asserted in the notebook), and the call-pattern mix is the
-same in each split to within 2 points.
+no normalized query appears in two splits (asserted in the notebook), and the call-pattern mix is
+close in each split (single calls: 47.2% of train, 49.2% of validation, 47.4% of
+test).
 
 Templates and tools are still shared by construction: 16.5% of validation and 12.9% of test rows share a
 query template with a train row, and only 2 validation and 4 test rows call a function train never
@@ -131,14 +135,14 @@ the 95% interval is about ±2.2 points near 50%, and a slice is reported on its 
 ### 4. Scouting: wrong-argument errors flat from 0.8B to 4B
 
 On 1,000 rows, the 0.8B, 2B and 4B made 229, 256 and 224 wrong-argument errors (issue #4). Errors that
-don't shrink with a model five times larger point at the labels: is "3% interest" `3` or `0.03`?
+don't shrink with a model five times larger point at the gold answers: is "3% interest" `3` or `0.03`?
 
-→ Audit the test labels, and audit **every** test row that any baseline gets wrong, not only the
+→ Audit the test gold answers, and audit **every** test row that any baseline gets wrong, not only the
 teacher's errors (ADR [0002](adr/0002-test-labels-never-edited.md)). Auditing only the 2B and 4B errors
 would have kept 18 unsound rows that only the student misses, lowering its `test-clean` score by 0.5
 points and widening the teacher–student gap by 0.8.
 
-### 5. Audit: at least 18.75% of test labels unsound; ceiling 81.25%
+### 5. Audit: at least 18.75% of test gold answers unsound; ceiling at most 81.25%
 
 The rubric ([`docs/label-audit.md`](label-audit.md)) asks one question per row: would a careful person,
 reading only the query and the tool specs, write this gold call? The verdict is `label_sound`,
@@ -179,12 +183,14 @@ method: [`results/label-audit.md`](../results/label-audit.md).
 The maintainer relabelled 30 random audited rows blind. 9 changed soundness, over the threshold of 3
 that the rubric set for "too loose".
 
-→ The rubric was tightened: the verdict `model_wrong` was renamed `label_sound` (its old name misled
-three of the nine), and three rules were added: a format the spec leaves open makes the row ambiguous;
-outside knowledge with exactly one answer (Inception's IMDb id) is sound; a made-up value is wrong, not
-ambiguous. One more disagreement was a bug in the review page, which rounded a 19-digit id in
-JavaScript. Under the tightened rubric every one of the nine keeps its audit verdict, and a rescan moved
-13 made-up-value rows from ambiguous to wrong without changing `test-clean`.
+→ The rubric was tightened. Of the nine: three came from the verdict's old name, `model_wrong`, which
+misled the reviewer and is now `label_sound`; one from a bug in the review page, which rounded a
+19-digit id in JavaScript; four from a format the spec leaves open, now a rule (the row is ambiguous);
+and one from outside knowledge, now a rule (a value with exactly one real-world answer, like Inception's
+IMDb id, is sound). Under the tightened rubric every one of the nine keeps its audit verdict. A tenth
+row changed only its unsound verdict, a made-up `zuid: "jkl012"`; the rule that a made-up value is wrong,
+not ambiguous, came from it, and a rescan moved 13 such rows from ambiguous to wrong without changing
+`test-clean`.
 
 This is shown as is: the rules were settled with the reviewer after comparing the disagreements, so it
 isn't a second independent check. A fresh blind sample under the tightened rubric would be one. Details:
@@ -198,7 +204,7 @@ Test is a random sample of xLAM, so train very likely has a similar share of uns
 
 → ADR [0005](adr/0005-train-and-validation-keep-label-noise.md):
 
-- **Train keeps its labels.** Rows leave train only through filters that detect a problem without
+- **Train keeps its gold answers.** Rows leave train only through filters that detect a problem without
   judgement. Placeholders and values found in neither query nor spec are candidates, measured on train
   first (#17).
 - **Validation is not audited** unless a method's gain on raw test is much larger than its gain on
@@ -214,38 +220,21 @@ marks it wrong. Many xLAM defaults look like example values copied from API docs
 the spec, not necessarily for the real API.
 
 → `lenient_exact` is reported next to strict `exact` (#15). It ignores optional arguments at their
-default or `null`, on either side. Strict stays the headline. Labels stay as published.
+default or `null`, on either side. Strict stays the headline. Gold answers stay as published.
 
 ## BFCL: the unseen-tools eval
 
 xLAM test calls only tools that train also calls (finding 3), so a second eval checks generalization to
-new tools: the [Berkeley Function-Calling Leaderboard](https://huggingface.co/datasets/gorilla-llm/Berkeley-Function-Calling-Leaderboard)
-v3, revision `61fc0608cfd831fcfbbaa676ebdfef0ed963eeda`, license Apache-2.0.
+new tools: 1,000 non-live, single-turn rows of the
+[Berkeley Function-Calling Leaderboard](https://huggingface.co/datasets/gorilla-llm/Berkeley-Function-Calling-Leaderboard)
+v3 (revision `61fc0608cfd831fcfbbaa676ebdfef0ed963eeda`, Apache-2.0): simple 400, multiple 200,
+parallel 200, parallel_multiple 200. Only 44 of them call a function some xLAM train answer also calls.
 
-| Category | Rows | Task |
-|---|---:|---|
-| simple | 400 | one function offered, one call |
-| multiple | 200 | several functions offered, one call |
-| parallel | 200 | one function, called several times |
-| parallel_multiple | 200 | several functions, several calls |
-
-Only non-live, single-turn Python categories are used. Only 44 of the 1,000 rows call a function that
-some xLAM train answer also calls.
-
-- **Same prompt as xLAM.** Each spec is converted to xLAM's shape (`integer` → `int`, `, optional` on
-  non-required parameters, `enum` values in the description), so a drop on BFCL reflects new tools, not
-  a new format.
-- **Scoring.** BFCL lists the acceptable values for each argument, `""` meaning it may be left out. A
-  prediction matches when its calls pair one-to-one with the gold calls, every value is acceptable, no
-  argument is unknown and every argument left out may be. `exact` uses xLAM's strict value comparison
-  and is the headline; `bfcl_exact` compares strings the way BFCL's checker does. These are close to the
-  leaderboard's numbers but not identical, because BFCL's type checks aren't reimplemented.
-- **Reporting.** Overall, simple (400) and the other three merged (600), following the 300-row rule.
-  BFCL is an eval only: nothing is chosen on it.
-- **Caveat.** BFCL has been public since 2024, so Qwen3.5 may have seen it in pretraining. That would
-  raise every model a little, not one method over another.
-
-Full notes: [`docs/bfcl.md`](bfcl.md).
+Each BFCL spec is converted to xLAM's format, so a drop on BFCL reflects new tools rather than a new
+prompt. BFCL lists the acceptable values for each argument, and a prediction scores `exact` when its
+calls pair one-to-one with the gold calls and every value is acceptable under xLAM's strict comparison.
+Results are reported overall, for simple (400) and for the other three merged (600), by the 300-row
+rule. Nothing is chosen on BFCL. Conversion, scoring rules and caveats: [`docs/bfcl.md`](bfcl.md).
 
 ## Reproduce
 
