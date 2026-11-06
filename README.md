@@ -20,16 +20,17 @@ Scoring is deterministic: no LLM judge.
 | `parse_ok` | output is a valid JSON list of `{name, arguments}` calls, with nothing around it |
 | `exact` | same calls as the gold answer (order-insensitive; `5 == 5.0`, `true != 1`) |
 | `lenient_exact` | `exact`, but ignoring optional arguments passed at their declared default or `null`, on either side. Many xLAM defaults look like example values copied from API docs, so such calls are the same by the tool spec, not necessarily for the real API. `exact` stays the headline |
+| `names` | the right functions were called |
+| `arg_f1` | F1 over `(function, argument, value)` triples, as partial credit |
 
 Each xLAM summary also breaks every metric down by call pattern (single / multiple / parallel),
 distractor tools (0 / 1-2 / 3+) and argument source (every value written in the query, or not), with
 row counts and 95% intervals. Buckets under 300 rows are flagged `too_small` (ADR 0001).
-| `names` | the right functions were called |
-| `arg_f1` | F1 over `(function, argument, value)` triples, as partial credit |
 
 Splits: train (56,392), validation (1,000) and test (2,000), grouped so no query text appears in
-two splits, with train filtered of duplicates, code-valued arguments and contradicting labels. How
-and why: [`notebooks/01_dataset.ipynb`](notebooks/01_dataset.ipynb) and [`docs/adr/`](docs/adr/).
+two splits, with train filtered of duplicates, code-valued arguments and contradicting labels. The
+data story, from the quality findings to the label audit and `test-clean`, is in the dataset card:
+[`docs/DATASET.md`](docs/DATASET.md).
 
 A second eval, on tools the student never trained on, uses the non-live single-turn part of
 [BFCL](https://huggingface.co/datasets/gorilla-llm/Berkeley-Function-Calling-Leaderboard) (1,000
@@ -92,7 +93,7 @@ src/fc_distill/
 notebooks/      01_dataset.ipynb: the dataset story and the split
 tests/          unit tests (CPU only)
 data/           committed split ids and the audit labels
-docs/           ADRs, the label-audit rubric and the BFCL notes
+docs/           dataset card, ADRs, the label-audit rubric and the BFCL notes
 results/        results worth keeping (label audit, baselines)
 ```
 

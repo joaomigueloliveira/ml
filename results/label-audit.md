@@ -7,7 +7,7 @@ key in `data/splits.json` (`fc-eval --split test-clean`).
 ## Ceiling
 
 **1,625 of the 2,000 test rows (81.25%) have a sound label.** That's the highest strict exact match a
-model that's always right could score on raw test. The other 374 rows have a gold label that is
+model that's always right could score on raw test. The other 375 rows have a gold label that is
 ambiguous (287) or wrong (88), and `test-clean` leaves them out.
 
 | | Rows |
