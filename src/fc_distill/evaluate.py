@@ -8,15 +8,16 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import get_args
 
-from fc_distill.data import load_split, to_messages
+from fc_distill.data import EvalSplit, load_split, to_messages
 from fc_distill.scoring import score, summarize
 
 
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--model", required=True, help="HF model id or local path")
-    ap.add_argument("--split", choices=("validation", "test"), default="validation")
+    ap.add_argument("--split", choices=get_args(EvalSplit), default="validation")
     ap.add_argument("--n", type=int, default=None, help="first n examples (default: all)")
     ap.add_argument("--out", type=Path, default=None, help="default: runs/eval-<model>")
     ap.add_argument("--max-model-len", type=int, default=4096)

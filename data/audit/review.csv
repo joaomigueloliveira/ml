@@ -1,0 +1,31 @@
+id,verdict,note
+4334,label_sound,"model did not fill the default, UK vs GB not specified in the api so model does not know how to query, i would say model wrong?"
+7396,label_sound,
+9238,label_ambiguous,"from what i see, there is no way for the model to know the id of the movie for the query its impossible"
+9685,label_sound,
+9793,label_sound,model filled with string instead of int
+14014,label_sound,
+14047,label_sound,
+14503,label_sound,
+22044,label_ambiguous,model filled the default value
+25106,label_sound,
+25855,label_sound,
+28567,label_wrong,"label says ""dayly"" but the description is 1-10, also problem with caps"
+31012,label_sound,"field is int and it filled with string, also probleb with caps"
+31706,label_ambiguous,"model filled the default value, still correct"
+33192,label_sound,
+35616,label_sound,
+36037,label_ambiguous,model filled the default value but still correct
+38510,label_sound,
+40311,label_sound,
+41794,label_sound,
+43032,label_ambiguous,"label a bit ambiguous, model said ""cats"" label says ""cat"", pred a is also sent a string and not an int"
+47337,label_sound,
+47684,label_sound,
+48573,label_ambiguous,"pred a is wrong, the but most of the issues are caps "
+50566,label_sound,
+51157,label_sound,
+53165,label_wrong,where is the lable getting the jkl012? model had no idea right?
+55363,label_sound,
+57548,label_ambiguous,"prediction b is wrong, but in this case i think that input format and output format are correct right? the difference is caps or not"
+59212,label_wrong,

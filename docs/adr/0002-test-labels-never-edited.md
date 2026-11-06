@@ -12,8 +12,10 @@ anyone else's.
 ## Decision
 
 - The test split keeps xLAM's labels exactly as published.
-- A label audit marks each test row that a strong model gets wrong as *model wrong*, *label ambiguous*
-  or *label wrong*. **`test-clean`** is test minus the ambiguous and wrong rows.
+- A label audit marks each test row that any baseline model (0.8B, 2B or 4B) gets wrong as *model
+  wrong*, *label ambiguous* or *label wrong*. Auditing only the teacher's errors would keep the bad
+  labels that trip only the student, which biases the gap. **`test-clean`** is test minus the
+  ambiguous and wrong rows (rubric: `docs/label-audit.md`, result: `results/label-audit.md`).
 - Every result is reported on both test and `test-clean`.
 - Train is cleaned only by documented filters that remove rows (unparseable, inconsistent, duplicated,
   leaking into validation/test, or holding Python code where a value is declared). No train label is

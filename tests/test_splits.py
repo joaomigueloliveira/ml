@@ -1,3 +1,5 @@
+import json
+
 from fc_distill.splits import assign_groups, build_splits
 from tests.factories import make_example
 
@@ -60,3 +62,19 @@ def test_report_counts_code_rows_kept_in_test():
     _, report = build_splits(_with_duplicate_and_code_row(), 0, test_size=41, seed=0)
     assert report["held_out_code_argument_rows"] == {"validation": 0, "test": 1}
     assert report["held_out_conflicting_label_rows"] == {"validation": 0, "test": 0}
+
+
+def test_write_splits_keeps_test_clean_only_while_test_is_unchanged(tmp_path):
+    from fc_distill.splits import write_splits
+
+    path = tmp_path / "splits.json"
+    splits, report = build_splits(_examples(40), validation_size=5, test_size=5)
+    write_splits(splits, report, path)
+    data = json.loads(path.read_text()) | {"test-clean": splits["test"][:3]}
+    path.write_text(json.dumps(data))
+    write_splits(splits, report, path)
+    assert json.loads(path.read_text())["test-clean"] == splits["test"][:3]
+
+    changed = splits | {"test": splits["test"][1:]}
+    write_splits(changed, report, path)
+    assert "test-clean" not in json.loads(path.read_text())
