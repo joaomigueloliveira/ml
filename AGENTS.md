@@ -32,6 +32,9 @@ while a GPU run is in progress.
   the test split only produces official numbers. Test labels stay as published; `test-clean` is a
   subset (ADR 0002).
 - Experiment outputs go to `runs/` (gitignored). Results worth keeping are summarised in `results/`.
+  `runs` is a symlink to one directory shared by every worktree (`$FC_RUNS_DIR`, default
+  `~/ml-runs`), so removing a worktree keeps its runs. `orca.yaml`'s setup hook creates it; in a
+  worktree made another way, run that hook's commands before writing any runs.
 
 ## Workflow
 

@@ -1,0 +1,9 @@
+# Orca worktree hooks.
+scripts:
+  # Experiment outputs live in one directory shared by every worktree, so removing a worktree
+  # keeps them; `runs` in the worktree is a symlink to it (AGENTS.md, Code conventions).
+  setup: |
+    runs_dir="${FC_RUNS_DIR:-$HOME/ml-runs}"
+    mkdir -p "$runs_dir"
+    cd "${ORCA_WORKTREE_PATH:-.}"
+    [ -e runs ] || ln -s "$runs_dir" runs
