@@ -78,6 +78,10 @@ uv run fc-eval --model Qwen/Qwen3.5-0.8B --split validation --wandb   # one eval
 uv run fc-report --wandb          # the official baselines, one run per model, from results/
 ```
 
+The official baseline runs (`summary.json` and `predictions.jsonl`) are backed up in a private
+W&B project, because they hold gated xLAM rows:
+`joaomigueloliveira30/qwen-function-calling-distillation-backup`, artifact `official-baseline-runs`.
+
 `WANDB_MODE=offline` keeps the run local (`wandb sync` uploads it later), and `WANDB_PROJECT` /
 `WANDB_ENTITY` point it at another project. Trainers log through the same helper,
 `fc_distill.tracking`, with GPU-hours (the teacher's included) as the x-axis. Every eval run uses
