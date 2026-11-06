@@ -25,9 +25,8 @@ from fc_distill.quality import (
     explicit_defaults,
     missing_required,
     type_mismatches,
-    without_defaults,
 )
-from fc_distill.scoring import call_multiset, parse_calls
+from fc_distill.scoring import lenient_match, parse_calls
 
 Verdict = Literal["label_sound", "label_ambiguous", "label_wrong"]
 VERDICTS: tuple[Verdict, ...] = get_args(Verdict)
@@ -74,10 +73,7 @@ def only_defaults_differ(prediction: Sequence[Call] | None, example: Example) ->
     """The prediction is the gold call once optional arguments at their default are dropped."""
     if prediction is None:
         return False
-    tools = example["tools"]
-    return call_multiset(without_defaults(prediction, tools)) == call_multiset(
-        without_defaults(example["answers"], tools)
-    )
+    return lenient_match(prediction, example["answers"], example["tools"])
 
 
 def auto_verdict(

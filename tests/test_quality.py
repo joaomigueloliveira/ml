@@ -10,8 +10,8 @@ from fc_distill.quality import (
     query_template,
     type_mismatches,
     unknown_calls,
-    without_defaults,
 )
+from fc_distill.scoring import without_defaults
 from tests.factories import make_example
 
 

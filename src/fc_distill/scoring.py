@@ -2,6 +2,11 @@
 
 A prediction is the raw model text. It must contain a JSON list of
 {"name": str, "arguments": dict} objects. Call order is ignored; everything else is strict.
+
+`exact` is the headline metric. `lenient_exact` also accepts a call that differs from gold only in
+optional arguments at their declared default or null, on either side (#15). Caveat: many xLAM
+defaults look like example values copied from API docs, so the two calls are the same by the tool
+spec, not necessarily for the real API.
 """
 
 import json
@@ -20,6 +25,7 @@ _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
 class Score(TypedDict):
     parse_ok: bool
     exact: bool
+    lenient_exact: bool
     names: bool
     arg_f1: float
 
@@ -71,17 +77,67 @@ def call_multiset(calls: Sequence[Call]) -> frozenset[tuple[Hashable, int]]:
     return frozenset(Counter(map(_call_key, calls)).items())
 
 
+def is_optional(spec: dict[str, Any]) -> bool:
+    """Only the type string says so ('int, optional'). xLAM puts an example value under "default"
+    on most required parameters too, and gold calls pass those 96% of the time."""
+    return "optional" in str(spec.get("type", "")).lower()
+
+
+def is_default(spec: dict[str, Any], value: Any) -> bool:
+    """An optional argument passed at its declared default, or as null: same as leaving it out.
+    xLAM often writes the default as a string ("17" for an int), so that form matches too."""
+    if not is_optional(spec):
+        return False
+    if value is None or "default" not in spec:
+        return value is None
+    default = spec["default"]
+    return bool(value == default or (isinstance(default, str) and json.dumps(value) == default))
+
+
+def without_defaults(calls: Sequence[Call], tools: Sequence[dict[str, Any]]) -> list[Call]:
+    """The calls with every argument that `is_default` dropped. Unknown tools are kept as is."""
+    specs = {t["name"]: t.get("parameters") or {} for t in tools}
+    return [
+        {
+            "name": c["name"],
+            "arguments": {
+                k: v
+                for k, v in c["arguments"].items()
+                if not is_default(specs.get(c["name"], {}).get(k, {}), v)
+            },
+        }
+        for c in calls
+    ]
+
+
+def lenient_match(
+    calls: Sequence[Call], gold: Sequence[Call], tools: Sequence[dict[str, Any]]
+) -> bool:
+    """Same calls once optional arguments at their default (or null) are dropped on both sides."""
+    return call_multiset(without_defaults(calls, tools)) == call_multiset(
+        without_defaults(gold, tools)
+    )
+
+
 def _arg_triples(calls: Sequence[Call]) -> Counter[Hashable]:
     return Counter((c["name"], k, _canon(v)) for c in calls for k, v in c["arguments"].items())
 
 
-def score(prediction: str, gold: Sequence[Call]) -> Score:
-    """Score one example: valid format, exact match, right functions, argument-level F1."""
+def score(prediction: str, gold: Sequence[Call], tools: Sequence[dict[str, Any]] = ()) -> Score:
+    """Score one example: valid format, exact and lenient exact match, right functions,
+    argument-level F1. Without `tools` no argument counts as optional, so lenient equals exact."""
     calls = parse_calls(prediction)
     if calls is None:
-        return {"parse_ok": False, "exact": False, "names": False, "arg_f1": 0.0}
+        return {
+            "parse_ok": False,
+            "exact": False,
+            "lenient_exact": False,
+            "names": False,
+            "arg_f1": 0.0,
+        }
 
     exact = call_multiset(calls) == call_multiset(gold)
+    lenient = exact or lenient_match(calls, gold, tools)
     names = Counter(c["name"] for c in calls) == Counter(c["name"] for c in gold)
 
     pred_args, gold_args = _arg_triples(calls), _arg_triples(gold)
@@ -93,7 +149,13 @@ def score(prediction: str, gold: Sequence[Call]) -> Score:
         recall = hit / max(gold_args.total(), 1)
         arg_f1 = 2 * precision * recall / (precision + recall) if hit else 0.0
 
-    return {"parse_ok": True, "exact": exact, "names": names, "arg_f1": arg_f1}
+    return {
+        "parse_ok": True,
+        "exact": exact,
+        "lenient_exact": lenient,
+        "names": names,
+        "arg_f1": arg_f1,
+    }
 
 
 def summarize(scores: Sequence[Score]) -> dict[str, float]:
@@ -102,6 +164,7 @@ def summarize(scores: Sequence[Score]) -> dict[str, float]:
         "n": len(scores),
         "parse_ok": mean(s["parse_ok"] for s in scores),
         "exact": mean(s["exact"] for s in scores),
+        "lenient_exact": mean(s["lenient_exact"] for s in scores),
         "names": mean(s["names"] for s in scores),
         "arg_f1": mean(s["arg_f1"] for s in scores),
     }

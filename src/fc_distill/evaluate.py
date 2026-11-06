@@ -78,7 +78,7 @@ def main() -> None:
         scores = []
         with (out / "predictions.jsonl").open("w") as f:
             for ex, text in zip(examples, texts, strict=True):
-                s = score(text, ex["answers"])
+                s = score(text, ex["answers"], ex["tools"])
                 scores.append(s)
                 record = {"id": ex["id"], "prediction": text, "gold": ex["answers"], **s}
                 f.write(json.dumps(record) + "\n")
