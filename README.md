@@ -38,6 +38,7 @@ gated dataset (accept the terms on the dataset page, then `uv run hf auth login`
 ```bash
 uv sync --extra inference         # base + vLLM
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split validation
+uv run fc-eval --model Qwen/Qwen3.5-0.8B --split test-clean   # official numbers: test and test-clean
 ```
 
 ## Development
@@ -63,9 +64,12 @@ src/fc_distill/
   eda.py        statistics and plots for the dataset notebook
   scoring.py    strict, deterministic scorer
   evaluate.py   vLLM eval CLI (fc-eval)
+  audit.py      test label audit and the test-clean subset (fc-audit)
 notebooks/      01_dataset.ipynb: the dataset story and the split
 tests/          unit tests (CPU only)
-data/           committed split ids
+data/           committed split ids and the audit labels
+docs/           ADRs and the label-audit rubric
+results/        results worth keeping (label audit)
 ```
 
 ## License

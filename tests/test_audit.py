@@ -3,12 +3,14 @@ import json
 import pytest
 
 from fc_distill.audit import (
+    agreement,
     auto_verdict,
     clean_ids,
     only_defaults_differ,
     pre_tags,
     prepare,
     read_labels,
+    review_sample,
     summary,
     write_labels,
     write_test_clean,
@@ -108,3 +110,22 @@ def test_write_test_clean_adds_the_key(tmp_path):
     path.write_text(json.dumps({"test": [1, 2]}))
     write_test_clean([2], path)
     assert json.loads(path.read_text()) == {"test": [1, 2], "test-clean": [2]}
+
+
+def test_review_sample_is_fixed_and_drawn_from_audited_rows():
+    labels = {i: _row(i, "model_wrong") for i in range(100)}
+    sample = review_sample(labels, n=30, seed=0)
+    assert sample == review_sample(labels, n=30, seed=0)
+    assert len(set(sample)) == 30
+    assert set(sample) <= set(labels)
+
+
+def test_agreement_separates_verdict_and_soundness_disagreements():
+    labels = {1: _row(1, "model_wrong"), 2: _row(2, "label_wrong"), 3: _row(3, "label_ambiguous")}
+    review = {1: "model_wrong", 2: "label_ambiguous", 3: "model_wrong", 4: ""}
+    result = agreement(labels, review)
+    assert result == {
+        "reviewed": 3,
+        "verdict_disagreements": [2, 3],
+        "soundness_disagreements": [3],
+    }

@@ -6,11 +6,13 @@ test minus the ambiguous and wrong rows.
 
 uv run fc-audit prepare   # write data/audit/test_labels.csv: rows to audit, pre-tags, auto verdicts
 uv run fc-audit build     # write the test-clean ids into data/splits.json and print the ceiling
+uv run fc-audit review    # sample 30 audited rows for the maintainer's blind review
 """
 
 import argparse
 import csv
 import json
+import random
 import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
@@ -32,6 +34,9 @@ VERDICTS: tuple[Verdict, ...] = get_args(Verdict)
 UNSOUND: frozenset[Verdict] = frozenset({"label_ambiguous", "label_wrong"})
 
 DEFAULT_LABELS_PATH = Path("data/audit/test_labels.csv")
+DEFAULT_REVIEW_PATH = Path("data/audit/review.csv")
+DEFAULT_SHEET_PATH = Path("results/label-audit-review.md")
+REVIEW_SIZE = 30
 DEFAULT_MODELS = ("Qwen/Qwen3.5-0.8B", "Qwen/Qwen3.5-2B", "Qwen/Qwen3.5-4B")
 FIELDS = ("id", "verdict", "category", "reason", "models_wrong", "tags")
 
@@ -171,6 +176,64 @@ def summary(test_ids: Sequence[int], labels: Mapping[int, AuditRow]) -> dict[str
     }
 
 
+def review_sample(labels: Mapping[int, AuditRow], n: int = REVIEW_SIZE, seed: int = 0) -> list[int]:
+    """The audited rows the maintainer relabels blind: a fixed random sample."""
+    return sorted(random.Random(seed).sample(sorted(labels), n))
+
+
+def agreement(labels: Mapping[int, AuditRow], review: Mapping[int, str]) -> dict[str, object]:
+    """Compare the maintainer's verdicts with the audit's. `soundness` counts only disagreements
+    that change test-clean (sound vs ambiguous/wrong)."""
+    done = {i: v for i, v in review.items() if v}
+    verdict = [i for i, v in done.items() if v != labels[i]["verdict"]]
+    soundness = [i for i in verdict if (done[i] in UNSOUND) != (labels[i]["verdict"] in UNSOUND)]
+    return {
+        "reviewed": len(done),
+        "verdict_disagreements": sorted(verdict),
+        "soundness_disagreements": sorted(soundness),
+    }
+
+
+def read_review(path: Path = DEFAULT_REVIEW_PATH) -> dict[int, str]:
+    with path.open(newline="") as f:
+        rows = list(csv.DictReader(f))
+    for r in rows:
+        if r["verdict"] and r["verdict"] not in VERDICTS:
+            raise ValueError(f"review row {r['id']}: unknown verdict {r['verdict']!r}")
+    return {int(r["id"]): r["verdict"] for r in rows}
+
+
+def review_sheet(
+    ids: Sequence[int],
+    test: Mapping[int, Example],
+    predictions: Mapping[str, Mapping[int, tuple[bool, str]]],
+) -> str:
+    """Markdown sheet for the blind review: query, the tools involved, gold label and the wrong
+    predictions in a fixed shuffled order. The audit's verdicts are deliberately left out."""
+    out = [
+        "# Label audit: blind review sheet",
+        "",
+        "Relabel each row against [the rubric](../docs/label-audit.md) and write the verdict "
+        "(`model_wrong`, `label_ambiguous` or `label_wrong`) into `data/audit/review.csv`. "
+        "Then run `uv run fc-audit build`, which reports the disagreements.",
+    ]
+    for i in ids:
+        ex = test[i]
+        wrong = [preds[i][1].strip() for preds in predictions.values() if not preds[i][0]]
+        random.Random(i).shuffle(wrong)
+        called = {c["name"] for c in ex["answers"]}
+        out += ["", f"## {i}", "", f"**Query:** {ex['query']}", "", "**Tools:**", ""]
+        out += [
+            f"- `{t['name']}`: {json.dumps(t.get('parameters') or {})}"
+            for t in ex["tools"]
+            if t["name"] in called
+        ]
+        out += ["", f"**Gold:** `{json.dumps(ex['answers'])}`", "", "**Wrong predictions:**", ""]
+        for p in wrong:
+            out += ["~~~", p[:600], "~~~"]
+    return "\n".join(out) + "\n"
+
+
 def write_test_clean(ids: Sequence[int], splits_path: Path = DEFAULT_SPLITS_PATH) -> None:
     splits = json.loads(splits_path.read_text())
     splits["test-clean"] = sorted(ids)
@@ -179,17 +242,26 @@ def write_test_clean(ids: Sequence[int], splits_path: Path = DEFAULT_SPLITS_PATH
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("command", choices=("prepare", "build"))
+    ap.add_argument("command", choices=("prepare", "build", "review"))
     ap.add_argument("--labels", type=Path, default=DEFAULT_LABELS_PATH)
     ap.add_argument("--models", nargs="+", default=list(DEFAULT_MODELS))
     ap.add_argument("--runs", type=Path, default=Path("runs"))
     args = ap.parse_args()
 
     test = load_split("test")
-    if args.command == "prepare":
+    if args.command in ("prepare", "review"):
         predictions = {
             m: load_predictions(args.runs / f"eval-test-{m.replace('/', '_')}") for m in args.models
         }
+    if args.command == "review":
+        ids = review_sample(read_labels(args.labels))
+        if not DEFAULT_REVIEW_PATH.exists():
+            with DEFAULT_REVIEW_PATH.open("w", newline="") as f:
+                f.write("id,verdict,note\n" + "".join(f"{i},,\n" for i in ids))
+        DEFAULT_SHEET_PATH.parent.mkdir(parents=True, exist_ok=True)
+        DEFAULT_SHEET_PATH.write_text(review_sheet(ids, {ex["id"]: ex for ex in test}, predictions))
+        print(f"wrote {DEFAULT_SHEET_PATH} and {DEFAULT_REVIEW_PATH} ({len(ids)} rows)")
+    elif args.command == "prepare":
         existing = read_labels(args.labels) if args.labels.exists() else {}
         rows = prepare(test, predictions, existing)
         write_labels(rows, args.labels)
@@ -199,7 +271,10 @@ def main() -> None:
         labels = read_labels(args.labels)
         ids = [ex["id"] for ex in test]
         write_test_clean(clean_ids(ids, labels))
-        print(json.dumps(summary(ids, labels), indent=2))
+        result = summary(ids, labels)
+        if DEFAULT_REVIEW_PATH.exists():
+            result["review"] = agreement(labels, read_review())
+        print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":
