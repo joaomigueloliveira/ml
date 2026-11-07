@@ -37,7 +37,8 @@ the teacher's generation time. Validation scoring is reported separately as sele
 every method pays about the same.
 
 **Teacher outputs (method B).** The 2B answers all train rows once:
-- greedy, thinking off (ADR 0003), the eval prompt, at most 512 new tokens, through vLLM;
+- with `fc-eval`'s decoding: greedy, thinking off (ADR 0003), the eval prompt, the same 1,024-token cap as
+  the baselines, through vLLM;
 - written to `runs/` with provenance (model, revision, settings) and backed up only to the private
   W&B project, because the outputs contain the gated xLAM prompts.
 
