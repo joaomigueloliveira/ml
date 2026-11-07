@@ -48,7 +48,7 @@ break ADR 0002.
   on the two is reported too, as the quirk-learning signal.
 - SFT on gold labels starts with an advantage on raw test that it doesn't have on `test-clean`. The
   write-up compares methods on `test-clean`.
-- #15 is a prerequisite for the filtered teacher-output arm.
+- #15 is a prerequisite for the filtered variant of method B (SFT on teacher outputs).
 
 ## Addendum (2026-11-07): no made-up-value filter (#17)
 
@@ -77,11 +77,11 @@ Rows that were never audited (every model right) count as sound, as in `test-cle
 - Tuning the normalisation could raise precision a little, but not plausibly to "mostly wrong".
 
 Why this costs little:
-- Only SFT arm A trains on gold labels. Arm B and the distillation arms learn from teacher
+- Only method A (SFT on gold labels) trains on gold labels. Method B and the distillation methods learn from teacher
   outputs, so gold's made-up values don't reach them.
-- If noisy gold makes arm A lose to the teacher-trained arms, that is a finding for the write-up.
+- If noisy gold makes method A lose to the teacher-trained methods, that is a finding for the write-up.
 
-**Trigger to revisit:** if arm A's gain on raw test is much larger than its gain on `test-clean`
+**Trigger to revisit:** if method A's gain on raw test is much larger than its gain on `test-clean`
 (the quirk-learning signal above), measure a tuned filter again before further gold-label runs.
 
 Settled while scoping #17, so no further study is needed:

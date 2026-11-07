@@ -10,6 +10,22 @@ Qwen3.5-0.8B, the model being trained.
 **Teacher**:
 Qwen3.5-2B, the model whose outputs or logits the student learns from.
 
+## Experiments
+
+**Method**:
+One way of training the student, compared with the others per GPU-hour: A, SFT on gold labels; B,
+SFT on teacher outputs; C, logit distillation; D, on-policy distillation; E, GRPO.
+_Avoid_: arm
+
+**Variant**:
+A named change within a method, e.g. method B filtered to the teacher outputs that match gold.
+
+**Run**:
+One training job of a method or variant, with its own checkpoints and its own W&B run.
+
+**Baseline**:
+An untrained model used as a reference point: the student, the teacher, the 4B.
+
 ## Data
 
 **Row**:
