@@ -57,6 +57,19 @@ Training curves and eval runs, the baselines included, are logged to the public 
 [joaomigueloliveira30/qwen-function-calling-distillation](https://forge.coreweave.com/wandb/joaomigueloliveira30/qwen-function-calling-distillation).
 `results/` stays the source of truth; W&B mirrors it.
 
+## Limitations
+
+Shortcuts taken on purpose, why, and what would make us revisit them.
+
+- **The LoRA settings and learning rate are untuned.** Every SFT method shares one config (r=16,
+  α=32, lr 2e-4), chosen as common defaults for the cost run. A sweep costs about 4 GPU-hours per
+  point and would have to be repeated for each method to stay fair (ADR 0006). Revisit if a method's
+  validation curve looks learning-rate-limited, e.g. its best checkpoint is an early one.
+- **One seed per method.** Comparisons rest on paired McNemar tests over the same test rows, not on
+  seed-to-seed variance (ADR 0006). Revisit if two methods land within a point or two on validation.
+- **Validation is not audited.** Checkpoints are chosen on raw validation labels, which carry xLAM's
+  label noise (ADR 0005). Revisit if a method gains much more on raw test than on `test-clean`.
+
 ## Quickstart
 
 Requires [uv](https://docs.astral.sh/uv/), an NVIDIA GPU for inference/training, and access to the
