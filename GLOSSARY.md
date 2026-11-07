@@ -92,3 +92,7 @@ Strict exact, except that explicit defaults on either side are ignored.
 **Quirk-learning**:
 A model gaining on raw test by reproducing xLAM's unsound labels, seen as a gain on test that
 `test-clean` doesn't show.
+
+**Gap recovered**:
+How much of the distance from the raw student to the teacher a trained student closes, in strict
+exact on the same eval: (student − raw student) / (teacher − raw student).
