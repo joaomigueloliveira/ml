@@ -52,6 +52,9 @@ from fc_distill.tracking import GPU_HOURS, data_provenance, git_state, hub_revis
 SPLITS = (*get_args(EvalSplit), "bfcl")
 # Rows generated again without the adapter, to check it changed something.
 ADAPTER_CHECK_ROWS = 32
+# A trained checkpoint changes about 70% of them; batch nondeterminism alone changes a few, so
+# "not all identical" would pass an adapter that never loaded.
+ADAPTER_MIN_CHANGED = 0.25
 
 
 class Suite(NamedTuple):
@@ -163,8 +166,11 @@ def main() -> None:
     if lora is not None:
         check = prompts[:ADAPTER_CHECK_ROWS]
         base = llm.chat(check, params, chat_template_kwargs=CHAT_TEMPLATE_KWARGS)
-        if [o.outputs[0].text for o in base] == texts[: len(check)]:
-            raise RuntimeError(f"{args.adapter} left the first {len(check)} outputs unchanged")
+        changed = sum(o.outputs[0].text != t for o, t in zip(base, texts, strict=False))
+        if changed < ADAPTER_MIN_CHANGED * len(check):
+            raise RuntimeError(
+                f"{args.adapter} changed {changed} of the first {len(check)} outputs: not loaded?"
+            )
 
     metrics = s.score(rows, texts, out)
     run: dict[str, Any] = {
