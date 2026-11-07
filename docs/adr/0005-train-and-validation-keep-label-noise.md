@@ -49,3 +49,42 @@ break ADR 0002.
 - SFT on gold labels starts with an advantage on raw test that it doesn't have on `test-clean`. The
   write-up compares methods on `test-clean`.
 - #15 is a prerequisite for the filtered teacher-output arm.
+
+## Addendum (2026-11-07): no made-up-value filter (#17)
+
+#17 measured the two candidate filters named above against the test label audit. The prototype
+was a quick, untuned measurement and was not committed:
+
+- **placeholder:** a gold string value matches a placeholder pattern (`YOUR_API_KEY`,
+  `api_key_here`, `cursor_value`, `<name>`, `example.com`, `xxx`, `your_…`);
+- **unseen string:** a gold string value of at least 3 characters, compared case-insensitively,
+  appears in neither the query nor the tool spec.
+
+Rows that were never audited (every model right) count as sound, as in `test-clean`.
+
+| Filter | Test rows flagged | Wrong value | Any unsound | Recall on the 73 wrong-value rows | Train rows removed |
+|---|---:|---:|---:|---:|---:|
+| placeholder | 60 | 11 (18%) | 21 (35%) | 15% | 1,400 of 54,561 (2.6%) |
+| unseen string | 273 | 46 (17%) | 159 (58%) | 63% | 7,476 of 54,561 (13.7%) |
+
+**Decision: neither filter is added.**
+- Neither one mostly removes rows the audit calls wrong. About 5 in 6 of the rows each one flags are
+  not wrong values.
+- Most of the unseen-string filter's unsound hits are ambiguous labels, which this ADR keeps on
+  purpose.
+- Its sound hits are correct rewrites that the query doesn't spell out, e.g. "January 1, 2023" →
+  `"2023-01-01"`.
+- Tuning the normalisation could raise precision a little, but not plausibly to "mostly wrong".
+
+Why this costs little:
+- Only SFT arm A trains on gold labels. Arm B and the distillation arms learn from teacher
+  outputs, so gold's made-up values don't reach them.
+- If noisy gold makes arm A lose to the teacher-trained arms, that is a finding for the write-up.
+
+**Trigger to revisit:** if arm A's gain on raw test is much larger than its gain on `test-clean`
+(the quirk-learning signal above), measure a tuned filter again before further gold-label runs.
+
+Settled while scoping #17, so no further study is needed:
+- **Float tolerance:** a 1e-4 relative tolerance would turn 1 to 2 of the 2,000 test rows right per
+  model, so the scorer stays exact.
+- **Gold call order:** the scorer already ignores it.
