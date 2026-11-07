@@ -49,6 +49,10 @@ Baselines (#10), strict exact match with 95% intervals. Full tables, slices and 
 
 The gap to close is 22.0 points on test-clean. Training results: _in progress_.
 
+Training cost (#36): one epoch of LoRA SFT over the full train split takes about 3.9 GPU-hours on the
+RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the
+padding. The settings and the sweeps behind them: [`results/sft-cost.md`](results/sft-cost.md).
+
 Training curves and eval runs, the baselines included, are logged to the public W&B project
 [joaomigueloliveira30/qwen-function-calling-distillation](https://forge.coreweave.com/wandb/joaomigueloliveira30/qwen-function-calling-distillation).
 `results/` stays the source of truth; W&B mirrors it.
@@ -65,6 +69,9 @@ uv run fc-eval --model Qwen/Qwen3.5-0.8B --split test-clean   # official numbers
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl         # unseen tools
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B       # re-score a saved run, no GPU
 uv run fc-report                  # results/baselines.{json,md} from the test and BFCL runs
+
+uv sync --extra inference --extra train   # + TRL, PEFT, flash-linear-attention
+uv run --no-sync fc-sft --n-rows 1000     # method A: LoRA SFT on gold labels -> runs/train-sft-gold-*
 ```
 
 ### Experiment tracking
@@ -116,6 +123,7 @@ src/fc_distill/
   bfcl.py       BFCL unseen-tools subset: loading, spec conversion, scoring
   slices.py     per-slice scores: call pattern, distractor tools, argument source
   report.py     baselines report with intervals and McNemar tests (fc-report)
+  sft.py        method A: LoRA SFT on gold labels with TRL, GPU-hour and memory accounting (fc-sft)
   tracking.py   W&B tracking shared by trainers and evals; GPU-hour accounting, provenance
   eval_tracking.py  how eval results are laid out in W&B (flat keys, slices table)
 notebooks/      01_dataset.ipynb: the dataset story and the split

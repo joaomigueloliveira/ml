@@ -15,11 +15,17 @@ dependencies = [
 [project.optional-dependencies]
 # GPU-only: kept out of the base install so CI and dev tooling stay CPU-only and fast.
 inference = ["vllm==0.33.0"]
+train = [
+    "flash-linear-attention>=0.6.0",
+    "peft>=0.21.2",
+    "trl>=1.17.1",
+]
 
 [project.scripts]
 fc-eval = "fc_distill.evaluate:main"
 fc-audit = "fc_distill.audit:main"
 fc-report = "fc_distill.report:main"
+fc-sft = "fc_distill.sft:main"
 
 [dependency-groups]
 dev = [
@@ -73,9 +79,9 @@ packages = ["fc_distill"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-# Treated as untyped everywhere: vllm and transformers are GPU extras that CI doesn't install, so skipping them
+# Treated as untyped everywhere: the GPU extras (vllm, torch, trl, peft) and transformers aren't in CI, so skipping them
 # keeps local and CI type checks identical.
-module = ["datasets.*", "vllm.*", "transformers.*"]
+module = ["datasets.*", "vllm.*", "transformers.*", "torch.*", "trl.*", "peft.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
 
