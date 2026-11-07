@@ -91,7 +91,8 @@ batch, and the sampler puts that batch first. So a run either fails in its first
 
 `LengthGroupedSampler` shuffles the rows, then sorts by length within megabatches of 200 rows. Each
 optimizer step therefore sees rows of similar length rather than a fully random mix. This is the
-usual trade, and the loss curve of the full run shows no sign of trouble. A method that needs fully
+usual trade. The full run's loss fell smoothly over its first 50 steps; its whole curve is the
+check. A method that needs fully
 random order can drop the flag at a cost of 1.6× in GPU-hours.
 
 ## Runs
