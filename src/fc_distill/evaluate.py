@@ -4,6 +4,11 @@ non-live single-turn subset (unseen tools, fc_distill.bfcl).
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --n 500
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B   # re-score saved predictions, no GPU
+uv run fc-eval --adapter runs/<train run>/checkpoint-500     # a LoRA checkpoint on its base model
+
+With --adapter, the summary records the checkpoint's step and the training run's GPU-hours at it
+(read from the run's W&B rows), and the run fails if the adapter doesn't change the base model's
+first outputs, which is how a silently unloaded adapter shows up.
 
 --wandb also logs the run to Weights & Biases, as one eval run with the split's scores under
 <split>/... keys (fc_distill.eval_tracking). summary.json stays the source of truth. Official
@@ -23,6 +28,14 @@ from pathlib import Path
 from typing import Any, NamedTuple, get_args
 
 from fc_distill import bfcl
+from fc_distill.checkpoints import (
+    STEP,
+    Checkpoint,
+    gpu_hours_at_step,
+    read_checkpoint,
+    training_history,
+    vllm_adapter,
+)
 from fc_distill.data import (
     CHAT_TEMPLATE_KWARGS,
     EvalSplit,
@@ -34,9 +47,11 @@ from fc_distill.data import (
 from fc_distill.eval_tracking import log_evals
 from fc_distill.scoring import METRICS, score, summarize
 from fc_distill.slices import slice_scores
-from fc_distill.tracking import data_provenance, git_state, hub_revision, start_run
+from fc_distill.tracking import GPU_HOURS, data_provenance, git_state, hub_revision, start_run
 
 SPLITS = (*get_args(EvalSplit), "bfcl")
+# Rows generated again without the adapter, to check it changed something.
+ADAPTER_CHECK_ROWS = 32
 
 
 class Suite(NamedTuple):
@@ -57,6 +72,13 @@ def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--model", help="HF model id or local path")
     ap.add_argument("--revision", default=None, help="model revision (default: latest on main)")
+    ap.add_argument(
+        "--adapter",
+        type=Path,
+        default=None,
+        metavar="CHECKPOINT_DIR",
+        help="a LoRA checkpoint saved by fc-sft; --model defaults to its base model",
+    )
     ap.add_argument(
         "--rescore",
         type=Path,
@@ -82,8 +104,13 @@ def parse_args() -> argparse.Namespace:
         "--allow-dirty", action="store_true", help="run even with uncommitted changes (recorded)"
     )
     args = ap.parse_args()
+    if args.adapter is not None:
+        base = read_checkpoint(args.adapter).base
+        if args.model not in (None, base):
+            ap.error(f"the adapter was trained on {base}, not {args.model}")
+        args.model = base
     if (args.model is None) == (args.rescore is None):
-        ap.error("give exactly one of --model or --rescore")
+        ap.error("give exactly one of --model (or --adapter) or --rescore")
     if args.model and not args.allow_dirty and git_state()["dirty"]:
         ap.error("uncommitted changes to tracked files; commit them or pass --allow-dirty")
     return args
@@ -104,8 +131,15 @@ def main() -> None:
 
     s = suite(args.split)
     rows = list(s.load())[: args.n]
-    out: Path = args.out or Path("runs") / f"eval-{args.split}-{args.model.replace('/', '_')}"
+    ckpt = None if args.adapter is None else read_checkpoint(args.adapter)
+    out: Path = args.out or Path("runs") / run_name(args.split, args.model, ckpt)
     out.mkdir(parents=True, exist_ok=True)
+    lora = None
+    if ckpt is not None:
+        from vllm.lora.request import LoRARequest
+
+        path = vllm_adapter(ckpt, out / "vllm-adapter")
+        lora = LoRARequest(f"{ckpt.train_run}-{ckpt.step}", 1, str(path))
 
     llm = LLM(
         model=args.model,
@@ -115,25 +149,33 @@ def main() -> None:
         quantization=args.quantization,
         **({"max_num_seqs": args.max_num_seqs} if args.max_num_seqs else {}),
         limit_mm_per_prompt={"image": 0, "video": 0},
+        **({"enable_lora": True, "max_lora_rank": ckpt.rank, "max_loras": 1} if ckpt else {}),
     )
     params = SamplingParams(temperature=0.0, max_tokens=args.max_tokens)
 
     start = time.perf_counter()
+    prompts = [s.messages(r) for r in rows]
     outputs = llm.chat(
-        [s.messages(r) for r in rows],
-        params,
-        chat_template_kwargs=CHAT_TEMPLATE_KWARGS,
+        prompts, params, chat_template_kwargs=CHAT_TEMPLATE_KWARGS, lora_request=lora
     )
     elapsed = time.perf_counter() - start
+    texts = [o.outputs[0].text for o in outputs]
+    if lora is not None:
+        check = prompts[:ADAPTER_CHECK_ROWS]
+        base = llm.chat(check, params, chat_template_kwargs=CHAT_TEMPLATE_KWARGS)
+        if [o.outputs[0].text for o in base] == texts[: len(check)]:
+            raise RuntimeError(f"{args.adapter} left the first {len(check)} outputs unchanged")
 
-    metrics = s.score(rows, [o.outputs[0].text for o in outputs], out)
-    run = {
+    metrics = s.score(rows, texts, out)
+    run: dict[str, Any] = {
         "model": args.model,
         "split": args.split,
         "seconds": round(elapsed, 1),
         "output_tokens": sum(len(o.outputs[0].token_ids) for o in outputs),
         "provenance": provenance(args),
     }
+    if ckpt is not None:
+        run["adapter"] = adapter_summary(ckpt)
     write_summary(out, metrics, run)
     if args.wandb:
         log_to_wandb(out, args.wandb_group)
@@ -141,7 +183,7 @@ def main() -> None:
 
 # Summary keys that describe the run rather than score it: the W&B config, where runs can be
 # filtered by them.
-CONFIG_KEYS = ("model", "split", "provenance", "rescored_by")
+CONFIG_KEYS = ("model", "split", "provenance", "rescored_by", "adapter")
 
 
 def log_to_wandb(run_dir: Path, group: str | None) -> None:
@@ -159,7 +201,31 @@ def log_to_wandb(run_dir: Path, group: str | None) -> None:
     log_evals(
         tracker, {summary["split"]: {k: v for k, v in summary.items() if k not in CONFIG_KEYS}}
     )
+    if "adapter" in summary:
+        # The x-axes of a validation-vs-GPU-hours curve across a training run's checkpoints.
+        adapter = summary["adapter"]
+        tracker.summary({GPU_HOURS: adapter["gpu_hours"], STEP: adapter["step"]})
     tracker.finish()
+
+
+def run_name(split: str, model: str, ckpt: Checkpoint | None) -> str:
+    """The eval run's directory under runs/: one per model, or per checkpoint of a training run."""
+    if ckpt is None:
+        return f"eval-{split}-{model.replace('/', '_')}"
+    return f"eval-{split}-{ckpt.train_run}-checkpoint-{ckpt.step}"
+
+
+def adapter_summary(ckpt: Checkpoint) -> dict[str, Any]:
+    """Which checkpoint was scored, and the training GPU-hours it cost (ADR 0006)."""
+    logged_step, hours = gpu_hours_at_step(training_history(ckpt.path.parent), ckpt.step)
+    return {
+        "path": str(ckpt.path),
+        "train_run": ckpt.train_run,
+        "step": ckpt.step,
+        "rank": ckpt.rank,
+        "gpu_hours": hours,
+        "gpu_hours_logged_at_step": logged_step,
+    }
 
 
 def provenance(args: argparse.Namespace) -> dict[str, Any]:
