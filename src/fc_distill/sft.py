@@ -103,8 +103,8 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--revision", default=None, help="model revision (default: latest on main)")
     ap.add_argument("--n-rows", type=int, default=None, help="random train rows (default: all)")
     ap.add_argument("--seed", type=int, default=0, help="row sample, LoRA init and data order")
-    # The longest of 3,000 sampled train rows is 2,582 tokens: 3,072 truncates no answer.
-    ap.add_argument("--max-length", type=int, default=3072)
+    # The longest train row is 3,550 tokens: 4,096 truncates no answer.
+    ap.add_argument("--max-length", type=int, default=4096)
     ap.add_argument("--batch-size", type=int, default=4, help="rows per micro-batch")
     ap.add_argument("--grad-accum", type=int, default=4, help="micro-batches per optimizer step")
     ap.add_argument(
