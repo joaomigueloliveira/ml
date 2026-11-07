@@ -65,6 +65,9 @@ uv run fc-eval --model Qwen/Qwen3.5-0.8B --split test-clean   # official numbers
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl         # unseen tools
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B       # re-score a saved run, no GPU
 uv run fc-report                  # results/baselines.{json,md} from the test and BFCL runs
+
+uv sync --extra inference --extra train   # + TRL, PEFT, flash-linear-attention
+uv run --no-sync fc-sft --n-rows 1000     # method A: LoRA SFT on gold labels -> runs/train-sft-gold-*
 ```
 
 ### Experiment tracking
@@ -116,6 +119,7 @@ src/fc_distill/
   bfcl.py       BFCL unseen-tools subset: loading, spec conversion, scoring
   slices.py     per-slice scores: call pattern, distractor tools, argument source
   report.py     baselines report with intervals and McNemar tests (fc-report)
+  sft.py        method A: LoRA SFT on gold labels with TRL, GPU-hour and memory accounting (fc-sft)
   tracking.py   W&B tracking shared by trainers and evals; GPU-hour accounting, provenance
   eval_tracking.py  how eval results are laid out in W&B (flat keys, slices table)
 notebooks/      01_dataset.ipynb: the dataset story and the split

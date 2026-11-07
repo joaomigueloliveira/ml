@@ -24,6 +24,7 @@ from typing import Any, NamedTuple, get_args
 
 from fc_distill import bfcl
 from fc_distill.data import (
+    CHAT_TEMPLATE_KWARGS,
     EvalSplit,
     Example,
     Message,
@@ -121,7 +122,7 @@ def main() -> None:
     outputs = llm.chat(
         [s.messages(r) for r in rows],
         params,
-        chat_template_kwargs={"enable_thinking": False},
+        chat_template_kwargs=CHAT_TEMPLATE_KWARGS,
     )
     elapsed = time.perf_counter() - start
 

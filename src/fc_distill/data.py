@@ -17,6 +17,8 @@ SYSTEM_PROMPT = """You are a function-calling assistant. You have access to thes
 Answer the user's request by calling the tools. Reply with ONLY a JSON list of calls, \
 in the form [{{"name": "<tool name>", "arguments": {{<argument name>: <value>, ...}}}}]. \
 No explanations, no markdown."""
+# Thinking off for every model and run (ADR 0003): fc-eval and the trainers render the same prompt.
+CHAT_TEMPLATE_KWARGS = {"enable_thinking": False}
 
 Split = Literal["train", "validation", "test"]
 # test minus the rows whose label the audit (#8) found ambiguous or wrong; see fc_distill.audit.
