@@ -113,10 +113,21 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help="recompute activations in the backward pass: less memory, more time",
     )
+    ap.add_argument(
+        "--group-by-length",
+        action="store_true",
+        help="batch rows of similar length together, so less of each batch is padding",
+    )
     ap.add_argument("--lr", type=float, default=2e-4)
     ap.add_argument("--lora-r", type=int, default=16)
     ap.add_argument("--lora-alpha", type=int, default=32)
     ap.add_argument("--logging-steps", type=int, default=5)
+    ap.add_argument(
+        "--save-steps",
+        type=int,
+        default=None,
+        help="save an adapter checkpoint every N optimizer steps (default: only at the end)",
+    )
     ap.add_argument("--out", type=Path, default=None, help="default: runs/<run name>")
     ap.add_argument("--wandb", action="store_true", help="log the run to Weights & Biases")
     ap.add_argument(
@@ -142,8 +153,10 @@ def main() -> None:
         rows = random.Random(args.seed).sample(rows, args.n_rows)
     # Everything a cost comparison varies is in the name, so two settings never share a run
     # directory (and so never resume each other's W&B run).
-    variant = f"r{args.lora_r}-b{args.batch_size}x{args.grad_accum}-n{len(rows)}" + (
-        "" if args.gradient_checkpointing else "-nogc"
+    variant = (
+        f"r{args.lora_r}-b{args.batch_size}x{args.grad_accum}-n{len(rows)}"
+        + ("" if args.gradient_checkpointing else "-nogc")
+        + ("-gl" if args.group_by_length else "")
     )
     name = f"train-{METHOD}-{variant}-s{args.seed}"
     out: Path = args.out or Path("runs") / name
@@ -170,6 +183,7 @@ def main() -> None:
                     "effective_batch": effective_batch,
                     "micro_batch": args.batch_size,
                     "gradient_checkpointing": args.gradient_checkpointing,
+                    "group_by_length": args.group_by_length,
                     "max_length": args.max_length,
                 },
                 "data": {"source": "gold", "split": "train", "n_rows": len(rows)},
@@ -215,7 +229,9 @@ def main() -> None:
             gradient_checkpointing=args.gradient_checkpointing,
             max_length=args.max_length,
             logging_steps=args.logging_steps,
-            save_strategy="no",
+            save_strategy="steps" if args.save_steps else "no",
+            save_steps=args.save_steps or 500,
+            train_sampling_strategy="group_by_length" if args.group_by_length else "random",
             include_num_input_tokens_seen="non_padding",
             # TRL's default for prompt-completion data; explicit because the run depends on it.
             completion_only_loss=True,
@@ -239,6 +255,7 @@ def main() -> None:
         "grad_accum": args.grad_accum,
         "max_length": args.max_length,
         "gradient_checkpointing": args.gradient_checkpointing,
+        "group_by_length": args.group_by_length,
         "final_train_loss": final.get("train_loss"),
         # HF's wall clock for train(), a cross-check on the step-timed GPU-hours in "cost".
         "train_runtime_s": final.get("train_runtime"),
