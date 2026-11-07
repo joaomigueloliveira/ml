@@ -19,7 +19,9 @@ from typing import Any, TypedDict
 
 from fc_distill.data import CHAT_TEMPLATE_KWARGS, Example, Message, load_split, to_messages
 from fc_distill.tracking import (
+    PEAK_GPU_MEM_GB,
     STUDENT_GPU_HOURS,
+    TOKENS_PER_S,
     GpuClock,
     Tracker,
     git_state,
@@ -30,6 +32,10 @@ from fc_distill.tracking import (
 
 STUDENT = "Qwen/Qwen3.5-0.8B"
 METHOD = "sft-gold"
+# Fixed for this cost run; #37 decides the shared setup for methods A and B.
+LORA_TARGETS = "all-linear"
+SCHEDULE = "cosine"
+WARMUP_RATIO = 0.03
 
 
 class SftRecord(TypedDict):
@@ -72,21 +78,21 @@ class ComputeLogger:
 
     def __init__(self, tracker: Tracker, clock: GpuClock, peak_bytes: Callable[[], int]) -> None:
         self._tracker, self._clock, self._peak_bytes = tracker, clock, peak_bytes
-        self._step = ExitStack()
+        self._timing = ExitStack()
 
     def on_step_begin(self, args: Any, state: Any, control: Any, **kwargs: Any) -> None:
-        self._step.enter_context(self._clock.measure("student"))
+        self._timing.enter_context(self._clock.measure("student"))
 
     def on_step_end(self, args: Any, state: Any, control: Any, **kwargs: Any) -> None:
-        self._step.close()
+        self._timing.close()
         if control.should_log:
             gpu = self._clock.metrics()
             self._tracker.log(
                 gpu
                 | {
-                    "compute/tokens_per_s": state.num_input_tokens_seen
-                    / (gpu[STUDENT_GPU_HOURS] * 3600),
-                    "compute/peak_gpu_mem_gb": self._peak_bytes() / 2**30,
+                    TOKENS_PER_S: state.num_input_tokens_seen / (gpu[STUDENT_GPU_HOURS] * 3600),
+                    PEAK_GPU_MEM_GB: self._peak_bytes() / 2**30,
+                    "train/global_step": state.global_step,
                 }
             )
 
@@ -134,7 +140,12 @@ def main() -> None:
     rows = load_split("train")
     if args.n_rows is not None:
         rows = random.Random(args.seed).sample(rows, args.n_rows)
-    name = f"train-{METHOD}-r{args.lora_r}-s{args.seed}"
+    # Everything a cost comparison varies is in the name, so two settings never share a run
+    # directory (and so never resume each other's W&B run).
+    variant = f"r{args.lora_r}-b{args.batch_size}x{args.grad_accum}-n{len(rows)}" + (
+        "" if args.gradient_checkpointing else "-nogc"
+    )
+    name = f"train-{METHOD}-{variant}-s{args.seed}"
     out: Path = args.out or Path("runs") / name
     effective_batch = args.batch_size * args.grad_accum
 
@@ -143,17 +154,22 @@ def main() -> None:
         {
             "exp": {
                 "method": METHOD,
+                "variant": variant,
                 "student": args.model,
                 "seed": args.seed,
                 "lora": {
                     "r": args.lora_r,
                     "alpha": args.lora_alpha,
-                    "target_modules": "all-linear",
+                    "dropout": 0.0,
+                    "target_modules": LORA_TARGETS,
                 },
                 "optim": {
                     "lr": args.lr,
-                    "schedule": "cosine",
+                    "schedule": SCHEDULE,
+                    "warmup_ratio": WARMUP_RATIO,
                     "effective_batch": effective_batch,
+                    "micro_batch": args.batch_size,
+                    "gradient_checkpointing": args.gradient_checkpointing,
                     "max_length": args.max_length,
                 },
                 "data": {"source": "gold", "split": "train", "n_rows": len(rows)},
@@ -180,7 +196,8 @@ def main() -> None:
         peft_config=LoraConfig(
             r=args.lora_r,
             lora_alpha=args.lora_alpha,
-            target_modules="all-linear",
+            lora_dropout=0.0,
+            target_modules=LORA_TARGETS,
             task_type="CAUSAL_LM",
         ),
         args=SFTConfig(
@@ -192,14 +209,16 @@ def main() -> None:
             per_device_train_batch_size=args.batch_size,
             gradient_accumulation_steps=args.grad_accum,
             learning_rate=args.lr,
-            lr_scheduler_type="cosine",
-            warmup_steps=0.03,
+            lr_scheduler_type=SCHEDULE,
+            warmup_steps=WARMUP_RATIO,  # a float below 1 is a ratio of the total steps
             bf16=True,
             gradient_checkpointing=args.gradient_checkpointing,
             max_length=args.max_length,
             logging_steps=args.logging_steps,
             save_strategy="no",
             include_num_input_tokens_seen="non_padding",
+            # TRL's default for prompt-completion data; explicit because the run depends on it.
+            completion_only_loss=True,
         ),
         callbacks=[callback],
     )
@@ -213,16 +232,19 @@ def main() -> None:
         seconds=clock.metrics()[STUDENT_GPU_HOURS] * 3600,
         peak_bytes=torch.cuda.max_memory_reserved(),
     )
-    record = {
+    final = trainer.state.log_history[-1]
+    report = {
         "name": name,
         "batch_size": args.batch_size,
         "grad_accum": args.grad_accum,
         "max_length": args.max_length,
         "gradient_checkpointing": args.gradient_checkpointing,
-        "final_train_loss": trainer.state.log_history[-1].get("train_loss"),
+        "final_train_loss": final.get("train_loss"),
+        # HF's wall clock for train(), a cross-check on the step-timed GPU-hours in "cost".
+        "train_runtime_s": final.get("train_runtime"),
         "cost": cost,
     }
-    (out / "cost.json").write_text(json.dumps(record, indent=2))
-    print(json.dumps(record, indent=2))
+    (out / "cost.json").write_text(json.dumps(report, indent=2))
+    print(json.dumps(report, indent=2))
     tracker.summary({f"cost/{k}": v for k, v in cost.items()})
     tracker.finish()

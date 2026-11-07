@@ -42,8 +42,8 @@ def test_compute_logger_logs_step_time_throughput_and_memory_on_logging_steps() 
     tracker = FakeTracker()
     logger = ComputeLogger(tracker, GpuClock(now=lambda: next(ticks)), peak_bytes=lambda: 3 * 2**30)
 
-    for tokens, should_log in [(900_000, False), (1_800_000, True)]:
-        state = SimpleNamespace(num_input_tokens_seen=tokens)
+    for step, tokens, should_log in [(1, 900_000, False), (2, 1_800_000, True)]:
+        state = SimpleNamespace(global_step=step, num_input_tokens_seen=tokens)
         control = SimpleNamespace(should_log=should_log)
         logger.on_step_begin(None, state, control)
         logger.on_step_end(None, state, control)
@@ -55,5 +55,8 @@ def test_compute_logger_logs_step_time_throughput_and_memory_on_logging_steps() 
             "compute/gpu_hours": 1.0,
             "compute/tokens_per_s": 500.0,
             "compute/peak_gpu_mem_gb": 3.0,
+            # HF's W&B callback steps every metric on train/global_step: without it, the row would
+            # plot at the previous logging step.
+            "train/global_step": 2,
         }
     ]

@@ -32,6 +32,9 @@ GPU_HOURS = "compute/gpu_hours"
 VAL_METRICS = tuple(f"val/{m}" for m in METRICS)
 STUDENT_GPU_HOURS = "compute/student_gpu_hours"
 TEACHER_GPU_HOURS = "compute/teacher_gpu_hours"
+# Logged next to the GPU-hours: running non-padding tokens per GPU-second, and peak reserved GiB.
+TOKENS_PER_S = "compute/tokens_per_s"
+PEAK_GPU_MEM_GB = "compute/peak_gpu_mem_gb"
 RUN_ID_FILE = "wandb_run_id"
 
 
