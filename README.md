@@ -49,6 +49,10 @@ Baselines (#10), strict exact match with 95% intervals. Full tables, slices and 
 
 The gap to close is 22.0 points on test-clean. Training results: _in progress_.
 
+Training cost (#36): one epoch of LoRA SFT over the full train split takes about 3.9 GPU-hours on the
+RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the
+padding. The settings and the sweeps behind them: [`results/sft-cost.md`](results/sft-cost.md).
+
 Training curves and eval runs, the baselines included, are logged to the public W&B project
 [joaomigueloliveira30/qwen-function-calling-distillation](https://forge.coreweave.com/wandb/joaomigueloliveira30/qwen-function-calling-distillation).
 `results/` stays the source of truth; W&B mirrors it.
