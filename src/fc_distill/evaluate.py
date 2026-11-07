@@ -64,7 +64,7 @@ def parse_args() -> argparse.Namespace:
     )
     ap.add_argument("--wandb", action="store_true", help="log the run to Weights & Biases")
     ap.add_argument(
-        "--wandb-group", default=None, help="W&B group: 'baseline', or the training arm"
+        "--wandb-group", default=None, help="W&B group: 'baseline', or the training method"
     )
     ap.add_argument("--split", choices=SPLITS, default="validation")
     ap.add_argument("--n", type=int, default=None, help="first n examples (default: all)")

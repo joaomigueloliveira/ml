@@ -135,7 +135,7 @@ the public API (unverified whether it is meant for users). For this repo:
   each slice's `exact` in the summary as scalars (for comparing runs), and the full slice block as
   one Table (for reading).
 - **Placement:** use the same `project` for everything, `job_type="train"` or `"eval"`, and a
-  `group` per arm (e.g. `sft-teacher-outputs`), so the runs table can group by arm and filter by job
+  `group` per method (e.g. `sft-teacher-outputs`), so the runs table can group by method and filter by job
   type ([D/models/runs/grouping.mdx](https://github.com/wandb/docs/blob/86eefc342c347f15ce6a4cda3114e9daeaccd403/models/runs/grouping.mdx) "Organize runs by job type").
   Baselines use `group="baseline"`. Tags (`split:test`, `split:bfcl`) make filtering easy.
 
@@ -322,7 +322,7 @@ class GpuClock:
     """Accumulates student/teacher seconds via context managers; state saved with checkpoints."""
 ```
 
-- **Config** (fixed inputs): `method`, `arm`, LoRA (`r`, `alpha`, `dropout`, `target_modules`), LR,
+- **Config** (fixed inputs): `method`, `variant`, LoRA (`r`, `alpha`, `dropout`, `target_modules`), LR,
   schedule, steps or epochs, batch and sequence lengths, data (`split`, filters, `n_rows`,
   teacher-output source), `provenance` (as above, dirty flag included), `teacher_precompute_gpu_hours`.
   The eval run also gets `checkpoint` (path + adapter sha256), `train_run_id` and the checkpoint's
@@ -336,7 +336,7 @@ class GpuClock:
 - **define_metric**, by exact name and never by glob: `compute/gpu_hours`; then for each validation
   metric `m`: `run.define_metric(m, step_metric="compute/gpu_hours", summary="max,last")`.
 - **`fc-eval --wandb`**: after `write_summary`, open `start_run(enabled=True, job_type="eval",
-  group=<arm or "baseline">, config={"model", "split", "provenance": ...})`, put the summary in
+  group=<method or "baseline">, config={"model", "split", "provenance": ...})`, put the summary in
   `run.summary` and the slices in a Table, then finish. `summary.json` stays the source of truth and
   W&B only mirrors it. `--rescore` could re-log through the same path (maintainer's call). Re-logging
   #10's baselines is then just running `fc-eval --rescore … --wandb` on the saved runs, with no GPU
@@ -354,7 +354,7 @@ class GpuClock:
    account under Forge?
 2. Upload LoRA adapters as artifacts (public download), use reference artifacts, or neither?
 3. Does validation eval time count toward the GPU-hour budget? Does SFT's teacher data generation
-   count fully toward every arm that reuses it, or is it shared out?
+   count fully toward every method that reuses it, or is it shared out?
 4. Should `wandb` be a base dependency, a `tracking` extra, or part of a training extra, and should
    CI install it for the disabled-mode test?
 5. Should `fc-eval --rescore … --wandb` be the way to re-log #10's baselines (no GPU), even though

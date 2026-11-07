@@ -4,8 +4,17 @@ Function-calling distillation on xLAM-60k: a small Qwen3.5 student learns from a
 teacher via SFT, logit distillation and on-policy distillation. See `README.md` for the goal and
 metrics.
 
-Plan, phases and decisions: issue #2; the reasons behind the big ones: `docs/adr/`. Read both before
-starting any roadmap issue.
+Plan, phases and decisions: issue #2, the project's wayfinder map; the reasons behind the big ones:
+`docs/adr/`. Read both before starting any roadmap issue.
+
+## Objectives
+
+Check every plan and ticket against these (agreed 2026-11-07, the map's Notes hold the detail):
+
+1. The maintainer **learns** the concepts: SFT, distillation, on-policy training, RL, evals.
+2. The output is a **clean git repo that tells the story** of the experiments and their conclusions.
+3. **KISS.** Every phase must fill a blank in the README claim (issue #2's Destination); anything else
+   is a stretch goal. Add rigour (new baselines, tests, tooling) only when a result needs it.
 
 ## Commands
 

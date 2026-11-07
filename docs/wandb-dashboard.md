@@ -232,22 +232,22 @@ sets `model/num_parameters` (L782). Consequences:
   `Runset` docstring).
 - Nested dicts become dotted columns (`exp.lora.r`), and config keys must not contain `.` themselves
   ([`wandb.md`](wandb.md) §2). In `wandb-workspaces` filters and columns they are addressed as
-  `Config("exp.arm")` and `config:exp.arm.value` (WS/…/interface.py `Runset` "Column format").
+  `Config("exp.method")` and `config:exp.method.value` (WS/…/interface.py `Runset` "Column format").
 - HF's `seed`, `learning_rate` and `num_train_epochs` collide with the obvious names. Ours live
   under `exp.*` even if that repeats a value.
 
 ### Conventions
 
-- **`group`** = the arm: `baseline`, `sft-gold`, `sft-teacher`, `opd`, `grpo`, … W&B describes a
+- **`group`** = the method: `baseline`, `sft-gold`, `sft-teacher`, `opd`, `grpo`, … W&B describes a
   group as *"a collection of runs that share a common purpose"*
   ([D/models/runs/grouping.mdx](https://github.com/wandb/docs/blob/86eefc342c347f15ce6a4cda3114e9daeaccd403/models/runs/grouping.mdx)).
-  Seeds and checkpoints of one arm share it, so line plots can average a group with a min-max band
+  Seeds and checkpoints of one method share it, so line plots can average a group with a min-max band
   (`groupby_aggfunc`, `groupby_rangefunc`, WS/…/interface.py L2097-L2135).
 - **`job_type`**: `train`, `eval`, `data` (split statistics), `generate` (teacher outputs and
   precomputed logits). `tracking.JobType` has only the first two today.
 - **`tags`**: status rather than facts: `official` (shown in the README dashboard), `smoke`,
   `superseded`. Facts that also live in config (split, method) make tags redundant.
-- **`name`**: `train-<arm>-<variant>-s<seed>` (`train-sft-teacher-r16-s0`) and
+- **`name`**: `train-<method>-<variant>-s<seed>` (`train-sft-teacher-r16-s0`) and
   `eval-<model-or-run-name>` (`eval-qwen3.5-0.8b`, `eval-train-sft-teacher-r16-s0-ckpt1200`).
   Names don't have to be unique ([D/models/runs/run-identifiers.mdx](https://github.com/wandb/docs/blob/86eefc342c347f15ce6a4cda3114e9daeaccd403/models/runs/run-identifiers.mdx)),
   but ours should be. Pass `TrainingArguments.run_name` the same name, so HF doesn't warn about
@@ -272,7 +272,7 @@ any number a panel should compare must also go in config or the summary.
 | What | Where | Why |
 |---|---|---|
 | Split statistics: rows per split, rows removed by each train filter, prompt and answer token length p50 / p95 / max, call-pattern and distractor mix | One `job_type="data"` run: summary `data/<split>/…` scalars, plus a `data/filters` Table, plus an artifact `xlam-splits` (type `dataset`) holding `data/splits.json` with these stats as metadata | Logged once per `splits_sha256`, and shows the data story in the dashboard |
-| What a training run actually used: `exp.data.n_rows` after the arm's filters, `exp.data.source` (gold / teacher), `exp.data.filters`, `splits_sha256` | **Config** of the training run, plus `run.use_artifact("xlam-splits:<sha8>")` for lineage | These are inputs, so they go in config. They differ by arm (teacher-output filtering) and runs get filtered by them |
+| What a training run actually used: `exp.data.n_rows` after the method's filters, `exp.data.source` (gold / teacher), `exp.data.filters`, `splits_sha256` | **Config** of the training run, plus `run.use_artifact("xlam-splits:<sha8>")` for lineage | These are inputs, so they go in config. They differ by method or variant (teacher-output filtering) and runs get filtered by them |
 | Teacher-generated data: rows generated, teacher `parse_ok`, rows kept, GPU-hours | A `job_type="generate"` run whose output is a `teacher-outputs` artifact, used by the SFT-on-teacher run | Its `compute/gpu_hours` becomes the training run's `teacher_precompute_gpu_hours` ([`wandb.md`](wandb.md) §7) |
 
 `splits.json` holds only ids, so it's small. Uploading row *text* (queries, tools, answers) to a
@@ -316,7 +316,7 @@ and it exports to PDF. The workspace (one saved view) is for day-to-day work.
 | Workspaces: `ws.Workspace(entity, project, name, sections=[ws.Section(name, panels=[...])], settings=ws.WorkspaceSettings(x_axis=…), runset_settings=ws.RunsetSettings(filters=…, groupby=…))`, then `.save()` (a new saved view) or `.save_as_new_view()` | WS/wandb_workspaces/workspaces/interface.py L459-L1373; D/models/track/workspaces.mdx "Programmatically create workspaces" |
 | Reports: `wr.Report(entity, project, title, blocks=[wr.H1, wr.P, wr.PanelGrid(runsets=[wr.Runset(filters=…)], panels=[…])])`, then `.save()`. `enable_share_link()` makes a view-only link | WS/README.md; WS/examples/reports/05_share_link.py |
 | Panels: `LinePlot` (any metric as `x`; `groupby`, `groupby_aggfunc`, `groupby_rangefunc`), `ScatterPlot` (summary or config axes), `BarPlot(metrics=[…])`, `ParallelCoordinatesPlot`, `RunComparer`, `ScalarChart`, `WeavePanelSummaryTable(table_name="slices")` for a logged Table, `MarkdownPanel`, `CustomChart` (Vega) | WS/…/reports/v2/interface.py L2097-L3299 |
-| Filters: string expressions (`"Config('exp.arm') = 'baseline' and State = 'finished'"`) or `ws.Config`, `ws.Summary`, `ws.Tags`, `ws.Metric` objects | WS/examples/workspaces/03_working_with_workspace_filters.py; `Runset` docstring |
+| Filters: string expressions (`"Config('exp.method') = 'baseline' and State = 'finished'"`) or `ws.Config`, `ws.Summary`, `ws.Tags`, `ws.Metric` objects | WS/examples/workspaces/03_working_with_workspace_filters.py; `Runset` docstring |
 | **Auth:** it calls `wandb.Api()` (the stored API key, and since 0.31.0 the Forge host by default) and talks GraphQL | WS/wandb_workspaces/\_graphql.py; WS/…/workspaces/internal.py L147, L189; W/wandb/sdk/lib/urls.py L7 |
 | User (personal) views can't be loaded: *"Workspace API does not currently support user views"* | WS/wandb_workspaces/utils/validators.py L50-L54 |
 
@@ -349,7 +349,7 @@ and it exports to PDF. The workspace (one saved view) is for day-to-day work.
 | Where the gap closes | `ParallelCoordinatesPlot` over `test_clean/slice/*/*/exact`, plus `WeavePanelSummaryTable(table_name="slices")` | eval runs |
 | Training | `LinePlot` of `train/loss`, `train/mean_token_accuracy`, `train/distill/kl_rev`, `train/grad_norm`, `train/learning_rate` (x = `train/global_step` or `compute/gpu_hours`) | train runs |
 | Cost | `LinePlot` of `compute/peak_gpu_mem_gb` and `compute/tokens_per_s`; `BarPlot` of `test/output_tokens_per_s` (serving) | both |
-| Runs table | `visible_columns` locked to `config:exp.arm.value`, `config:exp.method.value`, `summary:test_clean/exact`, `summary:bfcl/exact`, `config:compute.gpu_hours.value` | — |
+| Runs table | `visible_columns` locked to `config:exp.method.value`, `config:exp.variant.value`, `summary:test_clean/exact`, `summary:bfcl/exact`, `config:compute.gpu_hours.value` | — |
 
 ### Screenshots for the repo
 
@@ -405,7 +405,7 @@ and it exports to PDF. The workspace (one saved view) is for day-to-day work.
 
 | Key | Logged by | When | Where |
 |---|---|---|---|
-| `exp.{method, arm, student, teacher, seed, variant}`, `exp.lora.{r, alpha, dropout, target_modules}`, `exp.optim.{lr, schedule, warmup_ratio, effective_batch, max_length}` | trainer, before `trainer.train()` | init | config |
+| `exp.{method, variant, student, teacher, seed}`, `exp.lora.{r, alpha, dropout, target_modules}`, `exp.optim.{lr, schedule, warmup_ratio, effective_batch, max_length}` | trainer, before `trainer.train()` | init | config |
 | `exp.data.{source, filters, n_rows, splits_sha256}` | trainer | init | config |
 | `compute.teacher_precompute_gpu_hours` | trainer (from the generate run) | init | config |
 | `provenance.*` (`train_provenance()`) | trainer | init | config |
@@ -439,7 +439,7 @@ segment.
    directories) that opens one `job_type="eval"`, `group="baseline"`, `tags=["official"]` run per
    model, named `eval-<model-slug>`. It logs test, test-clean (from `xlam_block` over the test
    predictions, as `report.py` already does) and BFCL together. Config: `model`, `model_revision`,
-   `role`, `exp.arm="baseline"`, `exp.method="none"`, `compute.gpu_hours=0.0`,
+   `role`, `exp.method="baseline"`, `compute.gpu_hours=0.0`,
    `provenance.<eval>.*`.
 3. **Drop per-split W&B logging from `fc-eval --wandb`**, or keep it only for validation and smoke
    runs under `tags=["smoke"]`, so official per-split runs don't sit beside per-model runs and
@@ -454,7 +454,7 @@ segment.
 
 ### (c) Checklist for every training ticket
 
-- [ ] Open the run with `start_run(job_type="train", group=<arm>, name="train-<arm>-<variant>-s<seed>",
+- [ ] Open the run with `start_run(job_type="train", group=<method>, name="train-<method>-<variant>-s<seed>",
       tags=[…])` and the full `exp.*` / `provenance.*` / `exp.data.*` config **before**
       `trainer.train()`. Use `report_to="wandb"` and set `run_name` to the same name.
 - [ ] `include_num_input_tokens_seen="non_padding"` (or rely on TRL's `train/num_tokens`); leave
