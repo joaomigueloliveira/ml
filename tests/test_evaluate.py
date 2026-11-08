@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from fc_distill import evaluate
+from fc_distill.checkpoints import Checkpoint
 from tests.factories import make_example
 from tests.fakes import FakeTracker
 
@@ -99,3 +100,20 @@ def test_wandb_is_off_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not evaluate.parse_args().wandb
     monkeypatch.setattr(sys, "argv", ["fc-eval", "--rescore", "runs/x", "--wandb"])
     assert evaluate.parse_args().wandb
+
+
+def test_each_checkpoint_of_a_training_run_gets_its_own_eval_run() -> None:
+    def ckpt(step: int) -> Checkpoint:
+        run = Path("runs/train-sft-gold-r16-b4x4-n54561-gl-s0")
+        return Checkpoint(run / f"checkpoint-{step}", "Qwen/Qwen3.5-0.8B", 16, run.name, step)
+
+    names = {evaluate.run_name("validation", "Qwen/Qwen3.5-0.8B", ckpt(s)) for s in (500, 1000)}
+
+    assert names == {
+        "eval-validation-train-sft-gold-r16-b4x4-n54561-gl-s0-checkpoint-500",
+        "eval-validation-train-sft-gold-r16-b4x4-n54561-gl-s0-checkpoint-1000",
+    }
+    # Without an adapter the name is the baselines' as before.
+    assert evaluate.run_name("validation", "Qwen/Qwen3.5-0.8B", None) == (
+        "eval-validation-Qwen_Qwen3.5-0.8B"
+    )
