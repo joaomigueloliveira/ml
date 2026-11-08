@@ -25,6 +25,13 @@ The main question (ADR 0007).
 A method whose training uses gold labels, as targets, as a filter or in a reward: A, filtered B, E.
 The reference for what labels buy.
 
+**Pipeline**:
+Two methods run one after the other on the same student, e.g. B then D. Reported as a combination,
+never as either method.
+
+**Rollout**:
+An answer the student samples during training, to be graded: by the teacher in D, by a reward in E.
+
 **Variant**:
 A named change within a method, e.g. method B filtered to the teacher outputs that match gold.
 
