@@ -125,6 +125,17 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help=f"greedy probe on {PROBE_ROWS} validation rows at each checkpoint (watch only)",
     )
+    ap.add_argument(
+        "--probe-full-at",
+        type=int,
+        default=1000,
+        help="at this step the probe answers all of validation instead (watch only)",
+    )
+    ap.add_argument(
+        "--longest",
+        action="store_true",
+        help="with --n-rows: the longest train prompts instead of random ones (memory check)",
+    )
     ap.add_argument("--logging-steps", type=int, default=5)
     ap.add_argument("--save-steps", type=int, default=500)
     ap.add_argument("--out", type=Path, default=None, help="default: runs/<run name>")
@@ -180,12 +191,17 @@ def main() -> None:
     from trl import DistillationConfig, DistillationTrainer
 
     rows = load_split("train")
-    if args.n_rows is not None:
+    if args.n_rows is not None and args.longest:
+        rows = sorted(rows, key=lambda ex: len(json.dumps(to_messages(ex))))[-args.n_rows :]
+    elif args.n_rows is not None:
         rows = random.Random(args.seed).sample(rows, args.n_rows)
     records = [opd_record(ex) for ex in rows]
-    probe = probe_rows(load_split("validation")) if args.probe else []
-    variant = f"r{args.lora_r}-b{args.batch_size}x{args.grad_accum}-n{len(records)}" + (
-        "" if args.vllm else "-hf"
+    validation = load_split("validation")
+    probe = probe_rows(validation) if args.probe else []
+    variant = (
+        f"r{args.lora_r}-b{args.batch_size}x{args.grad_accum}-n{len(records)}"
+        + ("-longest" if args.longest else "")
+        + ("" if args.vllm else "-hf")
     )
     name = f"train-opd-{variant}-s{args.seed}"
     out: Path = args.out or Path("runs") / name
@@ -220,7 +236,7 @@ def main() -> None:
                     "max_completion_length": args.max_completion_length,
                 },
                 "data": {"source": "prompts", "split": "train", "n_rows": len(records)},
-                "probe_rows": len(probe),
+                "probe": {"rows": len(probe), "full_at_step": args.probe_full_at},
             },
             "provenance": train_provenance(
                 base=args.model,
@@ -251,11 +267,13 @@ def main() -> None:
         def on_save(self, args_: Any, state: Any, control: Any, **kwargs: Any) -> None:
             if not probe:
                 return
-            exact = probe_exact(greedy_answers(kwargs["model"], tokenizer, probe), probe)
-            print(f"probe, step {state.global_step}: exact {exact:.3f} on {len(probe)} rows")
+            full = state.global_step == args.probe_full_at
+            rows_ = validation if full else probe
+            exact = probe_exact(greedy_answers(kwargs["model"], tokenizer, rows_), rows_)
+            print(f"probe, step {state.global_step}: exact {exact:.3f} on {len(rows_)} rows")
             tracker.log(
                 {
-                    "probe/validation_exact": exact,
+                    ("probe/validation_exact_full" if full else "probe/validation_exact"): exact,
                     "train/global_step": state.global_step,
                     GPU_HOURS: clock.metrics()[GPU_HOURS],
                 }
