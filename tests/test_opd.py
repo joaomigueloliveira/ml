@@ -1,7 +1,10 @@
 import json
+from pathlib import Path
+
+import pytest
 
 from fc_distill.data import to_messages
-from fc_distill.opd import opd_record, probe_exact, probe_rows, rollout_stats
+from fc_distill.opd import init_adapter, opd_record, probe_exact, probe_rows, rollout_stats
 from tests.factories import make_example
 
 
@@ -38,3 +41,24 @@ def test_probe_rows_are_the_same_rows_every_time() -> None:
     first = probe_rows(validation)
     assert len(first) == 200
     assert [ex["id"] for ex in probe_rows(list(reversed(validation)))] == [ex["id"] for ex in first]
+
+
+def _checkpoint(tmp_path: Path, base: str = "Qwen/Qwen3.5-0.8B") -> Path:
+    path = tmp_path / "train-sft-teacher-r16-b4x4-n52424-gl-s0" / "checkpoint-1500"
+    path.mkdir(parents=True)
+    config = {"base_model_name_or_path": base, "r": 8, "lora_alpha": 24}
+    (path / "adapter_config.json").write_text(json.dumps(config))
+    return path
+
+
+def test_init_adapter_names_where_the_run_starts_and_keeps_the_adapters_rank(
+    tmp_path: Path,
+) -> None:
+    # B then D (ADR 0008): the run is named after B's run and step, so it never reads as method D.
+    start = init_adapter(_checkpoint(tmp_path), "Qwen/Qwen3.5-0.8B")
+    assert start == {"tag": "from-sft-teacher-r16-b4x4-n52424-gl-s0-1500", "r": 8, "alpha": 24}
+
+
+def test_init_adapter_refuses_an_adapter_trained_on_another_base(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match=r"Qwen/Qwen3\.5-2B"):
+        init_adapter(_checkpoint(tmp_path, base="Qwen/Qwen3.5-2B"), "Qwen/Qwen3.5-0.8B")
