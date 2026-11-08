@@ -48,16 +48,34 @@ rows), with specs converted to xLAM's format: [`docs/bfcl.md`](docs/bfcl.md).
 
 ## Results
 
-Baselines (#10), strict exact match with 95% intervals. Full tables, slices and McNemar tests:
-[`results/baselines.md`](results/baselines.md).
+Strict exact match with 95% intervals. Baselines (#10): [`results/baselines.md`](results/baselines.md).
+Methods, with every checkpoint, McNemar tests and the teacher-output counts:
+[`results/methods.md`](results/methods.md). Checkpoints are chosen on validation; test, test-clean
+and BFCL are run once, for the chosen one.
 
-| Model | Role | Test | Test-clean | BFCL (unseen tools) |
-|---|---|---:|---:|---:|
-| Qwen3.5-0.8B | student | 46.2 [44.0, 48.4] | 54.8 [52.3, 57.2] | 64.5 [61.5, 67.4] |
-| Qwen3.5-2B | teacher | 65.1 [63.0, 67.2] | 76.8 [74.7, 78.8] | 82.7 [80.2, 84.9] |
-| Qwen3.5-4B | reference | 68.8 [66.7, 70.7] | 81.8 [79.8, 83.6] | 82.7 [80.2, 84.9] |
+| Model | Training uses labels | GPU-h | Test | Test-clean | BFCL (unseen tools) |
+|---|---|---:|---:|---:|---:|
+| Qwen3.5-0.8B (student) | | 0 | 46.2 [44.0, 48.4] | 54.8 [52.3, 57.2] | 64.5 [61.5, 67.4] |
+| Qwen3.5-2B (teacher) | | 0 | 65.1 [63.0, 67.2] | 76.8 [74.7, 78.8] | 82.7 [80.2, 84.9] |
+| Qwen3.5-4B (reference) | | 0 | 68.8 [66.7, 70.7] | 81.8 [79.8, 83.6] | 82.7 [80.2, 84.9] |
+| **B**: 0.8B, SFT on teacher outputs | no | 3.12 | 71.2 [69.2, 73.1] | 83.4 [81.5, 85.1] | 79.1 [76.5, 81.5] |
+| **A**: 0.8B, SFT on gold labels | yes | 3.83 | 84.8 [83.1, 86.3] | 93.2 [91.9, 94.3] | 84.5 [82.1, 86.6] |
 
-The gap to close is 22.0 points on test-clean. Training results: _in progress_.
+- **Without labels, B beats its own teacher on xLAM.** On test-clean it recovers 130% of the
+  22.0-point gap from the 0.8B to the 2B (p < 0.0001 against both), and reaches 74% of what
+  training on gold labels gains. #2's success criterion, at least 50% of the gap, is met. Part of
+  it is format: 43 of the 159 rows B gets right and the 2B misses are 2B outputs that break off
+  mid-JSON, which B never trained on (unparsed outputs are dropped). On the 1,563 rows where both
+  outputs parse, B still leads, 83.9 to 79.8. It isn't memorisation: only 9 test-clean queries
+  appear in train, and B's lead is larger on tool sets train never saw.
+- **On tools it never trained on, it doesn't.** B gains 14.6 points on BFCL over the raw 0.8B but
+  stays below the 2B (p = 0.003). Its format holds (parse_ok 98.8 vs 98.9); it loses on argument
+  values, in every BFCL category. A ties the 2B there (p = 0.20).
+- **Labels still buy a lot.** A beats B on every eval (p < 0.0001); the teacher's outputs agree
+  with gold on only 67.6% of the train rows B learns from.
+
+B's GPU-hours include the 1.43 h the teacher took to answer the train split. Next: D, on-policy
+distillation starting from B (ADR 0007).
 
 Training cost (#36): one epoch of LoRA SFT over the full train split takes about 3.9 GPU-hours on the
 RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the
@@ -96,6 +114,7 @@ uv run fc-eval --model Qwen/Qwen3.5-0.8B --split test-clean   # official numbers
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl         # unseen tools
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B       # re-score a saved run, no GPU
 uv run fc-report                  # results/baselines.{json,md} from the test and BFCL runs
+uv run --no-sync fc-report --methods   # results/methods.{json,md}: each method's checkpoints
 
 uv sync --extra inference --extra train   # + TRL, PEFT, flash-linear-attention
 uv run --no-sync fc-sft --n-rows 1000     # method A: LoRA SFT on gold labels -> runs/train-sft-gold-*
@@ -150,14 +169,15 @@ src/fc_distill/
   bfcl.py       BFCL unseen-tools subset: loading, spec conversion, scoring
   slices.py     per-slice scores: call pattern, distractor tools, argument source
   report.py     baselines report with intervals and McNemar tests (fc-report)
-  sft.py        method A: LoRA SFT on gold labels with TRL, GPU-hour and memory accounting (fc-sft)
+  methods.py    method results: checkpoint selection, official scores, teacher-output counts (fc-report --methods)
+  sft.py        methods A and B: LoRA SFT on gold labels or teacher outputs, GPU-hour accounting (fc-sft)
   tracking.py   W&B tracking shared by trainers and evals; GPU-hour accounting, provenance
   eval_tracking.py  how eval results are laid out in W&B (flat keys, slices table)
 notebooks/      01_dataset.ipynb: the dataset story and the split
 tests/          unit tests (CPU only)
 data/           committed split ids and the audit labels
 docs/           dataset card, ADRs, the label-audit rubric, the BFCL and W&B notes
-results/        results worth keeping (label audit, baselines)
+results/        results worth keeping (label audit, baselines, methods)
 ```
 
 ## License

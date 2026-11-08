@@ -2,6 +2,7 @@
 
 uv run fc-report    # reads runs/eval-{test,bfcl}-Qwen_Qwen3.5-{0.8B,2B,4B}
 uv run fc-report --wandb    # logs the committed results/baselines.json to W&B, one run per model
+uv run fc-report --methods  # results/methods.{json,md}: method checkpoints vs baselines (#46)
 
 Test-clean is scored from the test runs restricted to the test-clean ids, not from separate runs:
 the predictions are the same, and a second vLLM run could differ slightly because batched greedy
@@ -323,7 +324,20 @@ def main() -> None:
         action="store_true",
         help=f"log {DEFAULT_JSON} to Weights & Biases instead of rebuilding it",
     )
+    ap.add_argument(
+        "--methods",
+        action="store_true",
+        help="write results/methods.{json,md} (fc_distill.methods) instead of the baselines",
+    )
     args = ap.parse_args()
+    if args.methods:
+        from fc_distill import methods
+
+        data = methods.build(args.runs)
+        methods.DEFAULT_JSON.write_text(json.dumps(data, indent=1) + "\n")
+        methods.DEFAULT_MD.write_text(methods.render(data))
+        print(f"wrote {methods.DEFAULT_JSON} and {methods.DEFAULT_MD}")
+        return
     if args.wandb:
         raw = DEFAULT_JSON.read_bytes()
         log_baselines(json.loads(raw), args.runs, hashlib.sha256(raw).hexdigest())
