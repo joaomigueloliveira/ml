@@ -17,6 +17,14 @@ One way of training the student, compared with the others per GPU-hour: A, SFT o
 SFT on teacher outputs; C, logit distillation; D, on-policy distillation; E, GRPO.
 _Avoid_: arm
 
+**Label-free method**:
+A method whose training never sees gold labels, only queries and the teacher: B (unfiltered), C, D.
+The main question (ADR 0007).
+
+**With-labels method**:
+A method whose training uses gold labels, as targets, as a filter or in a reward: A, filtered B, E.
+The reference for what labels buy.
+
 **Variant**:
 A named change within a method, e.g. method B filtered to the teacher outputs that match gold.
 
@@ -96,3 +104,7 @@ A model gaining on raw test by reproducing xLAM's unsound labels, seen as a gain
 **Gap recovered**:
 How much of the distance from the raw student to the teacher a trained student closes, in strict
 exact on the same eval: (student − raw student) / (teacher − raw student).
+
+**Share of A's gain**:
+How much of method A's improvement a label-free method reaches, in strict exact on the same eval:
+(method − raw student) / (A − raw student).

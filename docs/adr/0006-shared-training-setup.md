@@ -1,6 +1,6 @@
 # 0006. One untuned training setup shared by the SFT methods
 
-Date: 2026-11-07 · Status: accepted
+Date: 2026-11-07 · Status: accepted · Amended 2026-11-08 by ADR 0007 (filtered B always runs)
 
 ## Context
 
@@ -45,8 +45,10 @@ every method pays about the same.
 **Method B variants.**
 - **Unfiltered B** trains on every teacher output that parses, right or wrong. Outputs that don't
   parse are dropped and counted.
-- **Filtered B** keeps only outputs that lenient-match gold (ADR 0005). It runs only if unfiltered B
-  doesn't beat A on validation. The teacher outputs are shared, so it costs only its training run.
+- **Filtered B** keeps only outputs that lenient-match gold (ADR 0005). It uses the labels, so it is
+  an analysis run in the with-labels regime, run after the label-free methods (ADR 0007; it first
+  ran only if unfiltered B didn't beat A). The teacher outputs are shared, so it costs only its
+  training run.
 
 ## Considered options
 
@@ -56,8 +58,7 @@ every method pays about the same.
   rows. Revisit if A and B land within a point or two on validation.
 - **Count validation scoring in a method's GPU-hours.** Rejected: it is the same for every method and
   only adds noise to the curves.
-- **Run filtered B unconditionally.** Deferred: it answers a follow-up question, and only matters if
-  unfiltered B loses.
+- **Run filtered B unconditionally.** First deferred; adopted in ADR 0007, as an analysis run.
 
 ## Consequences
 
