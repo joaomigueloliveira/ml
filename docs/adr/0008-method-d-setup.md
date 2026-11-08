@@ -38,8 +38,11 @@ chunk so neither model's full logits are ever held at once.
   run, the best wins, ties to the earlier, then test, `test-clean` and BFCL for that one only. One
   seed. The checkpoint nearest B's 3.1 GPU-hours gives the matched-cost comparison with B.
 - **Monitoring during the run**, watch only: the loss, the parse rate of the student's rollouts
-  and, at each checkpoint, a 200-row validation probe from the loaded sampling engine. It never stops
-  the run or chooses the checkpoint.
+  and, at each checkpoint, a probe: greedy answers on a fixed 200-row validation subset, and on all
+  of validation once, at step 1000. It never stops the run or chooses the checkpoint; the test split
+  is never touched. The probe uses HF `generate`, not the colocated vLLM engine, which samples at
+  the training temperature and holds no weights while asleep, so its scores can differ from
+  `fc-eval`'s by a few rows.
 - **B→D**, continuing B's adapter with D's loss for one epoch, is a **pipeline**, reported as
   "B then D", not as method D. It becomes the next run if D doesn't beat B on validation; otherwise
   it stays a stretch goal. This amends ADR 0007, where D started from B.

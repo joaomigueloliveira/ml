@@ -29,6 +29,10 @@ The reference for what labels buy.
 Two methods run one after the other on the same student, e.g. B then D. Reported as a combination,
 never as either method.
 
+**Probe**:
+A score taken while a run trains, on validation, to watch it. Never used to stop the run or to
+choose its checkpoint.
+
 **Rollout**:
 An answer the student samples during training, to be graded: by the teacher in D, by a reward in E.
 
