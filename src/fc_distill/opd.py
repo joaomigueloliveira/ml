@@ -261,8 +261,10 @@ def main() -> None:
     )
     tokenizer = AutoTokenizer.from_pretrained(args.model, revision=student_revision)
     clock = GpuClock()
-    # Device memory in use, as nvidia-smi sees it, the most seen at a logging step. PyTorch's own
-    # peak counters also count vLLM's sleep-mode pool and report more than the card has.
+    # Device memory in use, as nvidia-smi sees it, the most seen at a logging step: after the
+    # step, with vLLM asleep, so a floor on the peak during sampling (an nvidia-smi log during the
+    # run gives that). PyTorch's own peak counters also count vLLM's sleep-mode pool and report
+    # more than the card has.
     device_peak = [0]
 
     def device_used_bytes() -> int:
