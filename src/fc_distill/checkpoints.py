@@ -68,8 +68,9 @@ def training_history(train_run: Path) -> list[dict[str, Any]]:
 # (`model.layers.N...`). vLLM serves the vision-language checkpoint, whose text layers sit under
 # `model.language_model.` and map to `language_model.model.`: unrenamed, the weights match no
 # module and vLLM serves the base model as if no adapter were loaded.
-_PEFT_TEXT = "base_model.model.model."
-_PEFT_VL = "base_model.model.model.language_model."
+PEFT_PREFIX = "base_model.model."
+TEXT_PREFIX = PEFT_PREFIX + "model."
+VL_PREFIX = PEFT_PREFIX + "model.language_model."
 
 
 def vllm_adapter(ckpt: Checkpoint, out: Path) -> Path:
@@ -78,7 +79,7 @@ def vllm_adapter(ckpt: Checkpoint, out: Path) -> Path:
 
     weights = load_file(str(ckpt.path / "adapter_model.safetensors"))
     renamed = {
-        k.replace(_PEFT_TEXT, _PEFT_VL, 1) if k.startswith(_PEFT_TEXT) else k: v
+        k.replace(TEXT_PREFIX, VL_PREFIX, 1) if k.startswith(TEXT_PREFIX) else k: v
         for k, v in weights.items()
     }
     out.mkdir(parents=True, exist_ok=True)

@@ -13,15 +13,14 @@ def test_opd_record_is_the_eval_prompt_with_no_answer() -> None:
     assert '"x": 42' not in json.dumps(record)
 
 
-def test_rollout_stats_count_parsed_calls_and_mean_length() -> None:
+def test_rollout_stats_count_parsed_calls() -> None:
     texts = [
         '[{"name": "f", "arguments": {"x": 1}}]',
         '```json\n[{"name": "f", "arguments": {}}]\n```',  # fenced: the scorer accepts it
         '[{"name": "f", "arguments": {"x": 1}}], {',  # bracket slip
         "I can't help with that.",
     ]
-    stats = rollout_stats(texts, lengths=[10, 14, 12, 8])
-    assert stats == {"rollout/parse_ok": 0.5, "rollout/completion_tokens": 11.0}
+    assert rollout_stats(texts) == {"rollout/parse_ok": 0.5}
 
 
 def test_probe_exact_scores_each_output_against_its_own_row() -> None:

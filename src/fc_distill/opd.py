@@ -21,6 +21,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, TypedDict
 
+from fc_distill.checkpoints import PEFT_PREFIX, TEXT_PREFIX, VL_PREFIX
 from fc_distill.data import CHAT_TEMPLATE_KWARGS, Example, Message, load_split, to_messages
 from fc_distill.scoring import parse_calls, score
 from fc_distill.sft import (
@@ -59,14 +60,11 @@ def opd_record(example: Example) -> OpdRecord:
     return {"prompt": to_messages(example)}
 
 
-def rollout_stats(texts: Sequence[str], lengths: Sequence[int]) -> dict[str, float]:
-    """Health of one batch of the student's samples, for W&B: the share that parse as calls (by
-    the eval's parser, so a fenced answer counts) and the mean completion length in tokens."""
+def rollout_stats(texts: Sequence[str]) -> dict[str, float]:
+    """Health of the student's samples since the last log, for W&B: the share that parse as calls
+    by the eval's parser, so a fenced answer counts. (TRL logs their lengths itself.)"""
     parsed = sum(parse_calls(t) is not None for t in texts)
-    return {
-        "rollout/parse_ok": parsed / len(texts),
-        "rollout/completion_tokens": sum(lengths) / len(lengths),
-    }
+    return {"rollout/parse_ok": parsed / len(texts)}
 
 
 def probe_rows(validation: Sequence[Example], n: int = PROBE_ROWS, seed: int = 0) -> list[Example]:
@@ -86,12 +84,12 @@ def probe_exact(outputs: Sequence[str], rows: Sequence[Example]) -> float:
 
 
 def vllm_vl_name(name: str) -> str:
-    """A text-only HF parameter name as vLLM's vision-language Qwen3.5 class loads it. TRL starts
-    vLLM from the checkpoint, whose class is the VL one, and pushes the weights of our text-only
-    student: `model.layers.0...` must arrive as `model.language_model.layers.0...`. `lm_head` and
-    names already prefixed pass through."""
-    if name.startswith("model.") and not name.startswith("model.language_model."):
-        return "model.language_model." + name.removeprefix("model.")
+    """A text-only HF parameter name as vLLM's vision-language Qwen3.5 class loads it: the same
+    rename `checkpoints.vllm_adapter` applies to adapters, here for the full weights TRL pushes
+    to its colocated engine. `lm_head` and names already prefixed pass through."""
+    text, vl = TEXT_PREFIX.removeprefix(PEFT_PREFIX), VL_PREFIX.removeprefix(PEFT_PREFIX)
+    if name.startswith(text) and not name.startswith(vl):
+        return vl + name.removeprefix(text)
     return name
 
 
@@ -144,16 +142,19 @@ def parse_args() -> argparse.Namespace:
         "--allow-dirty", action="store_true", help="run even with uncommitted changes (recorded)"
     )
     args = ap.parse_args()
+    if args.probe and args.probe_full_at % args.save_steps:
+        ap.error("--probe-full-at must be a multiple of --save-steps: the probe runs at saves")
     if not args.allow_dirty and git_state()["dirty"]:
         ap.error("uncommitted changes to tracked files; commit them or pass --allow-dirty")
     return args
 
 
 def greedy_answers(
-    model: Any, tokenizer: Any, rows: Sequence[Example], batch: int = 16
+    model: Any, tokenizer: Any, rows: Sequence[Example], max_tokens: int, batch: int = 16
 ) -> list[str]:
-    """The student's greedy answers with HF generate, for the probe: independent of the sampling
-    engine, whose temperature is the training one."""
+    """The student's greedy answers with HF generate, for the probe. Not the colocated vLLM
+    engine: it samples at the training temperature, and asleep between steps it holds no weights
+    (ADR 0008). HF and vLLM greedy outputs can differ on a few rows."""
     import torch
 
     tokenizer.padding_side = "left"
@@ -172,7 +173,7 @@ def greedy_answers(
                 for ex in rows[i : i + batch]
             ]
             enc = tokenizer(prompts, return_tensors="pt", padding=True).to(model.device)
-            out = model.generate(**enc, do_sample=False, max_new_tokens=1024, use_cache=True)
+            out = model.generate(**enc, do_sample=False, max_new_tokens=max_tokens, use_cache=True)
             outputs += tokenizer.batch_decode(
                 out[:, enc["input_ids"].shape[1] :], skip_special_tokens=True
             )
@@ -206,6 +207,10 @@ def main() -> None:
     name = f"train-opd-{variant}-s{args.seed}"
     out: Path = args.out or Path("runs") / name
     effective_batch = args.batch_size * args.grad_accum
+    engine = "vllm-colocate" if args.vllm else "hf-generate"
+    # Pinned, not just recorded: both models load at the commit the run reports.
+    student_revision = hub_revision(args.model, args.revision)
+    teacher_revision = hub_revision(args.teacher, args.teacher_revision)
 
     tracker = start_run(enabled=args.wandb, job_type="train", group="opd", run_dir=out, name=name)
     tracker.config(
@@ -231,7 +236,7 @@ def main() -> None:
                 },
                 "loss": {"divergence": "reverse_kl", "beta": 1.0},
                 "sampling": {
-                    "engine": "vllm-colocate" if args.vllm else "hf-generate",
+                    "engine": engine,
                     "temperature": args.temperature,
                     "max_completion_length": args.max_completion_length,
                 },
@@ -240,71 +245,87 @@ def main() -> None:
             },
             "provenance": train_provenance(
                 base=args.model,
-                base_revision=hub_revision(args.model, args.revision),
+                base_revision=student_revision,
                 teacher=args.teacher,
-                teacher_revision=hub_revision(args.teacher, args.teacher_revision),
+                teacher_revision=teacher_revision,
             ),
         }
     )
 
     # Text-only causal LMs for both: the checkpoints are vision-language, the towers stay unloaded.
     student = AutoModelForCausalLM.from_pretrained(
-        args.model, revision=args.revision, dtype=torch.bfloat16
+        args.model, revision=student_revision, dtype=torch.bfloat16
     )
     teacher = AutoModelForCausalLM.from_pretrained(
-        args.teacher, revision=args.teacher_revision, dtype=torch.bfloat16
+        args.teacher, revision=teacher_revision, dtype=torch.bfloat16
     )
-    tokenizer = AutoTokenizer.from_pretrained(args.model, revision=args.revision)
+    tokenizer = AutoTokenizer.from_pretrained(args.model, revision=student_revision)
     clock = GpuClock()
+    # Device memory in use, as nvidia-smi sees it, the most seen at a logging step. PyTorch's own
+    # peak counters also count vLLM's sleep-mode pool and report more than the card has.
+    device_peak = [0]
+
+    def device_used_bytes() -> int:
+        free, total = torch.cuda.mem_get_info()
+        device_peak[0] = max(device_peak[0], total - free)
+        return device_peak[0]
+
     compute = type("ComputeCallback", (ComputeLogger, TrainerCallback), {})(
-        tracker, clock, torch.cuda.max_memory_reserved
+        tracker, clock, device_used_bytes
     )
 
     class ProbeCallback(TrainerCallback):  # type: ignore[misc]
         """At each checkpoint: greedy answers on the probe rows, strict exact, to W&B. Runs after
         the step's timing closes, so it isn't counted in GPU-hours."""
 
-        def on_save(self, args_: Any, state: Any, control: Any, **kwargs: Any) -> None:
+        def on_save(self, hf_args: Any, state: Any, control: Any, **kwargs: Any) -> None:
             if not probe:
                 return
             full = state.global_step == args.probe_full_at
-            rows_ = validation if full else probe
-            exact = probe_exact(greedy_answers(kwargs["model"], tokenizer, rows_), rows_)
-            print(f"probe, step {state.global_step}: exact {exact:.3f} on {len(rows_)} rows")
+            asked = validation if full else probe
+            answers = dict(
+                zip(
+                    (ex["id"] for ex in asked),
+                    greedy_answers(kwargs["model"], tokenizer, asked, args.max_completion_length),
+                    strict=True,
+                )
+            )
+            # The 200-row curve gets a point at every save, the full step included.
+            scores = {
+                "probe/validation_exact": probe_exact([answers[ex["id"]] for ex in probe], probe)
+            }
+            if full:
+                scores["probe/validation_exact_full"] = probe_exact(list(answers.values()), asked)
+            print(f"probe, step {state.global_step}: {json.dumps(scores)}")
             tracker.log(
-                {
-                    ("probe/validation_exact_full" if full else "probe/validation_exact"): exact,
-                    "train/global_step": state.global_step,
-                    GPU_HOURS: clock.metrics()[GPU_HOURS],
-                }
+                scores
+                | {"train/global_step": state.global_step, GPU_HOURS: clock.metrics()[GPU_HOURS]}
             )
 
     class OpdTrainer(DistillationTrainer):  # type: ignore[misc]
         """DistillationTrainer plus the rollout health signals (ADR 0008)."""
 
-        def __init__(self, *a: Any, **kw: Any) -> None:
-            super().__init__(*a, **kw)
-            self._rollouts: tuple[list[str], list[int]] = ([], [])
-            if getattr(self, "vllm_generation", None) is not None:
-                fix = self.vllm_generation._fix_param_name_to_vllm
-                self.vllm_generation._fix_param_name_to_vllm = lambda n, **k: vllm_vl_name(
-                    fix(n, **k)
+        def __init__(self, *args_: Any, **kwargs: Any) -> None:
+            super().__init__(*args_, **kwargs)
+            self._rollout_texts: list[str] = []
+            engine_ = getattr(self, "vllm_generation", None)
+            if engine_ is not None:
+                trl_rename = engine_._fix_param_name_to_vllm
+                engine_._fix_param_name_to_vllm = lambda name, **kw: vllm_vl_name(
+                    trl_rename(name, **kw)
                 )
 
         def _generate_and_score_completions(self, inputs: Any) -> Any:
             output = super()._generate_and_score_completions(inputs)
-            texts, lengths = self._rollouts
-            texts += self.processing_class.batch_decode(
+            self._rollout_texts += self.processing_class.batch_decode(
                 output["completion_ids"], skip_special_tokens=True
             )
-            lengths += output["completion_mask"].sum(dim=1).tolist()
             return output
 
         def log(self, logs: dict[str, float], start_time: float | None = None) -> None:
-            texts, lengths = self._rollouts
-            if texts and "loss" in logs:
-                logs = logs | rollout_stats(texts, lengths)
-                self._rollouts = ([], [])
+            if self._rollout_texts and "loss" in logs:
+                logs = logs | rollout_stats(self._rollout_texts)
+                self._rollout_texts = []
             super().log(logs, start_time)
 
     trainer = OpdTrainer(
@@ -349,7 +370,6 @@ def main() -> None:
         ),
         callbacks=[compute, ProbeCallback()],
     )
-    torch.cuda.reset_peak_memory_stats()
     trainer.train()
     trainer.save_model(str(out / "adapter"))
 
@@ -357,12 +377,14 @@ def main() -> None:
         rows=len(records),
         tokens=trainer.state.num_input_tokens_seen,
         seconds=clock.metrics()[STUDENT_GPU_HOURS] * 3600,
-        peak_bytes=torch.cuda.max_memory_reserved(),
+        peak_bytes=device_peak[0],
     )
     final = trainer.state.log_history[-1]
     report = {
         "name": name,
-        "engine": "vllm-colocate" if args.vllm else "hf-generate",
+        "engine": engine,
+        "batch_size": args.batch_size,
+        "grad_accum": args.grad_accum,
         "final_train_loss": final.get("train_loss"),
         "train_runtime_s": final.get("train_runtime"),
         "cost": cost,
