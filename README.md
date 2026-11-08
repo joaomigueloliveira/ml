@@ -75,7 +75,7 @@ and BFCL are run once, for the chosen one.
   with gold on only 67.6% of the train rows B learns from.
 
 B's GPU-hours include the 1.43 h the teacher took to answer the train split. Next: D, on-policy
-distillation from the raw student at the same budget as one SFT run (ADR 0008).
+distillation from the raw student, one epoch like A and B (ADR 0008).
 
 Training cost (#36): one epoch of LoRA SFT over the full train split takes about 3.9 GPU-hours on the
 RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the
@@ -96,8 +96,8 @@ Shortcuts taken on purpose, why, and what would make us revisit them.
 - **One seed per method.** Comparisons rest on paired McNemar tests over the same test rows, not on
   seed-to-seed variance (ADR 0006). Revisit if two methods land within a point or two on validation.
 - **Method D's learning rate is untuned.** It reuses the SFT config (lr 2e-4) for a different loss,
-  and runs to a 3.8 GPU-hour budget rather than an epoch (ADR 0008). Revisit if its validation curve
-  collapses or is still climbing at the end of the budget.
+  (ADR 0008). Revisit if its validation curve collapses or is still climbing at the end of the
+  epoch.
 - **"Label-free" is about training only.** Checkpoints are chosen on labelled validation and scored on
   labelled test, as in practice, where a small labelled eval set is the norm (ADR 0007).
 - **One small teacher.** The 2B is right on about 65% of train rows; a stronger teacher would likely
