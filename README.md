@@ -1,13 +1,23 @@
 # qwen-function-calling-distillation
 
-Can a small Qwen3.5 model learn function calling from a bigger one? This project compares the three
-kinds of knowledge distillation on the same task, the same held-out set and a single consumer GPU:
+Can a small Qwen3.5 model learn function calling from a bigger one, **without labels**? In practice
+distillation is what you reach for when there are queries but no gold answers, and a model better
+than the one you want to ship. This project trains Qwen3.5-0.8B from a Qwen3.5-2B teacher on one
+consumer GPU, and compares the label-free methods with SFT on gold labels, the reference for what
+labels buy (ADR 0007).
 
-1. **SFT on teacher outputs** (sequence-level distillation)
-2. **Logit distillation** on the teacher's top-k token probabilities
-3. **On-policy distillation**, where the student writes and the teacher scores every token
-   ([Thinking Machines, 2025](https://thinkingmachines.ai/blog/on-policy-distillation/);
-   [GKD](https://arxiv.org/abs/2306.13649))
+| Method | | Training uses labels |
+|---|---|---|
+| **A** | SFT on gold labels | yes: the reference |
+| **B** | SFT on teacher outputs (sequence-level distillation) | no |
+| **D** | On-policy distillation: the student writes, the teacher scores every token ([Thinking Machines, 2025](https://thinkingmachines.ai/blog/on-policy-distillation/); [GKD](https://arxiv.org/abs/2306.13649)) | no |
+| **C** | Logit distillation on the teacher's top-k token probabilities | no |
+| **filtered B** | B on the teacher outputs that match gold: what the teacher's mistakes cost | yes, as a filter |
+| **E** | GRPO, reward checked against gold: does RL add anything on top of SFT? | yes, in the reward |
+
+A is done; the rest run in table order, label-free methods first. Every result is
+reported next to the untrained baselines and A, with two numbers on `test-clean`: the gap recovered
+from the raw 0.8B towards the 2B, and the share of A's gain reached without labels.
 
 ## Task
 
@@ -67,6 +77,10 @@ Shortcuts taken on purpose, why, and what would make us revisit them.
   validation curve looks learning-rate-limited, e.g. its best checkpoint is an early one.
 - **One seed per method.** Comparisons rest on paired McNemar tests over the same test rows, not on
   seed-to-seed variance (ADR 0006). Revisit if two methods land within a point or two on validation.
+- **"Label-free" is about training only.** Checkpoints are chosen on labelled validation and scored on
+  labelled test, as in practice, where a small labelled eval set is the norm (ADR 0007).
+- **One small teacher.** The 2B is right on about 65% of train rows; a stronger teacher would likely
+  lift every label-free method. The results are about this pair (ADR 0004).
 - **Validation is not audited.** Checkpoints are chosen on raw validation labels, which carry xLAM's
   label noise (ADR 0005). Revisit if a method gains much more on raw test than on `test-clean`.
 
