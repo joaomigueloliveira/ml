@@ -26,6 +26,7 @@ fc-eval = "fc_distill.evaluate:main"
 fc-audit = "fc_distill.audit:main"
 fc-report = "fc_distill.report:main"
 fc-sft = "fc_distill.sft:main"
+fc-opd = "fc_distill.opd:main"
 
 [dependency-groups]
 dev = [
