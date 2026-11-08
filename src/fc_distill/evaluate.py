@@ -3,6 +3,7 @@ non-live single-turn subset (unseen tools, fc_distill.bfcl).
 
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --n 500
 uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl
+uv run fc-eval --model Qwen/Qwen3.5-2B --split train --max-model-len 5120   # teacher outputs
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B   # re-score saved predictions, no GPU
 uv run fc-eval --adapter runs/<train run>/checkpoint-500     # a LoRA checkpoint on its base model
 
@@ -49,7 +50,9 @@ from fc_distill.scoring import METRICS, score, summarize
 from fc_distill.slices import slice_scores
 from fc_distill.tracking import GPU_HOURS, data_provenance, git_state, hub_revision, start_run
 
-SPLITS = (*get_args(EvalSplit), "bfcl")
+# "train" is for teacher outputs (method B, ADR 0006): the run's predictions.jsonl is what fc-sft
+# --targets teacher trains on. Its scores against gold are a by-product, never a result.
+SPLITS = (*get_args(EvalSplit), "bfcl", "train")
 # Rows generated again without the adapter, to check it changed something.
 ADAPTER_CHECK_ROWS = 32
 # A trained checkpoint changes about 70% of them; batch nondeterminism alone changes a few, so
