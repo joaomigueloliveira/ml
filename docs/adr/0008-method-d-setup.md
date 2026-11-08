@@ -1,4 +1,4 @@
-# 0008. Method D: on-policy distillation from the raw student, by GPU-hour budget
+# 0008. Method D: on-policy distillation from the raw student, one epoch
 
 Date: 2026-11-08 · Status: accepted
 
@@ -23,17 +23,27 @@ chunk so neither model's full logits are ever held at once.
 | Loss | reverse KL (`beta=1.0`), exact over the vocabulary at every answer position |
 | Start | the raw 0.8B with a fresh LoRA, r16/α32 all-linear (ADR 0006) |
 | Teacher | Qwen3.5-2B, bf16, in the same process |
-| Data | train-split prompts, never gold; a seed-0 subset, no repeats; one sample per prompt |
+| Data | all train-split prompts, never gold (a seed-0 subset only under the cap); one sample per prompt |
 | Sampling | temperature 1.0, thinking off, the eval prompt, at most 1,024 tokens |
 | Optimiser | lr 2e-4, cosine, 3% warmup, 16 rows per step (ADR 0006, untuned) |
-| Length | a budget of 3.8 GPU-hours, the cost of one SFT epoch; rows follow from measured throughput |
+| Length | one epoch over the train prompts, a checkpoint every 500 steps, as A and B; capped at about 12 GPU-hours |
 | Sampling engine | vLLM colocated with sleep mode if it fits next to training and the teacher; HF `generate` otherwise |
 
 - **GPU-hours start at 0** and every step counts the student's sampling, the teacher's forward pass
   and the update, so the teacher's cost is inside D's curve.
-- **Selection** follows ADR 0006: about 6 checkpoints scored on validation with strict exact, the
-  best wins, ties to the earlier, then test, `test-clean` and BFCL for that one only. One seed.
-- **B→D**, continuing B's adapter with D's loss for the same budget, is a **pipeline**, reported as
+- **The cap.** If the smoke run (#53) puts an epoch above about 12 GPU-hours (one night), D trains
+  on a seed-0 subset sized to 12 GPU-hours instead, with the cosine schedule over that subset. The cap
+  is fixed before the run, from throughput, never from validation scores.
+- **Selection** follows ADR 0006: every checkpoint scored on validation with strict exact after the
+  run, the best wins, ties to the earlier, then test, `test-clean` and BFCL for that one only. One
+  seed. The checkpoint nearest B's 3.1 GPU-hours gives the matched-cost comparison with B.
+- **Monitoring during the run**, watch only: the loss, the parse rate of the student's rollouts
+  and, at each checkpoint, a probe: greedy answers on a fixed 200-row validation subset, and on all
+  of validation once, at step 1000. It never stops the run or chooses the checkpoint; the test split
+  is never touched. The probe uses HF `generate`, not the colocated vLLM engine, which samples at
+  the training temperature and holds no weights while asleep, so its scores can differ from
+  `fc-eval`'s by a few rows.
+- **B→D**, continuing B's adapter with D's loss for one epoch, is a **pipeline**, reported as
   "B then D", not as method D. It becomes the next run if D doesn't beat B on validation; otherwise
   it stays a stretch goal. This amends ADR 0007, where D started from B.
 
@@ -44,15 +54,21 @@ chunk so neither model's full logits are ever held at once.
   GPU-hour. Kept as the B→D pipeline.
 - **Thinking Machines' sampled-token loss**, one teacher log-probability per token. Rejected: a
   hand-written sampling loop and update, where TRL computes the exact per-position KL in chunks.
-- **Length in rows or epochs.** Rejected: a D step costs far more than an SFT step (sampling and a
-  teacher forward pass), so equal rows would not be an equal cost. A budget makes the curves meet on
-  the GPU-hour axis.
+- **A GPU-hour budget (3.8, one SFT epoch's cost) instead of an epoch.** Rejected: the cosine
+  schedule needs the total step count up front, so a budget means guessing it from throughput; and
+  the per-checkpoint GPU-hours already give the matched-cost point. An epoch keeps D on A's and B's
+  steps and rows.
+- **Early stopping on validation** (stop at 1500 if no better than 1000). Rejected: it would have
+  stopped A at 80.8, outside the interval of its final 84.7; adjacent checkpoints rarely differ
+  significantly on 1,000 rows; and it needs scoring during training. A patience rule (two
+  checkpoints without a new best) would not have stopped A, but still needs in-run scoring.
 - **Half the learning rate.** Only argued for when refining B's adapter; from a fresh adapter the
   shared config holds.
 
 ## Consequences
 
-- D's row count is known only after the smoke run (#53); the run itself is #54.
+- Whether D gets the full epoch or the 12 GPU-hour subset is known after the smoke run (#53); the
+  run itself is #54, likely overnight.
 - The learning rate is untuned for a loss it wasn't chosen for. The README lists it.
 - Temperature-1.0 samples from the raw student break the JSON more often than greedy decoding
   (parse_ok 84.5% on validation, greedy); those tokens are still graded by the teacher.
