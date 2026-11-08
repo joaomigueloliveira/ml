@@ -5,6 +5,7 @@
   "missing required": 1483,
   "unparsed": 2137,
   "unknown function": 22,
+  "gold_not_valid": 1798,
   "variants": {
    "unfiltered": {
     "kept": 52424,

@@ -90,6 +90,12 @@ def teacher_counts(
             kept["valid"].append(r)
         if r["lenient_exact"]:
             kept["lenient"].append(r)
+    # The same check on gold: how often it rejects a correct answer, since xLAM doesn't always mark
+    # its optional arguments as optional.
+    out["gold_not_valid"] = sum(
+        validity(json.dumps(examples[r["id"]]["answers"]), examples[r["id"]]["tools"]) != "valid"
+        for r in records
+    )
     out["variants"] = {
         name: {"kept": len(rows), "exact": round(sum(r["exact"] for r in rows) / len(rows), 4)}
         for name, rows in kept.items()
@@ -246,7 +252,9 @@ def render(data: Mapping[str, Any]) -> str:
         "`runs/`; numbers: [`methods.json`](methods.json). Strict exact with 95% intervals. "
         "Checkpoints are chosen on validation (ADR 0006); test, test-clean and BFCL are run only "
         "for the selected one. Label-free methods are the main question; methods with labels are "
-        "the reference (ADR 0007).",
+        "the reference (ADR 0007). The baseline test and BFCL runs predate #30, so their "
+        "`splits_sha256` differs from the method runs'; #30 changed only train, and the "
+        "validation, test and test-clean ids are identical.",
         "",
         "## Headline",
         "",
@@ -277,7 +285,8 @@ def render(data: Mapping[str, Any]) -> str:
     out += [
         "",
         "GPU-hours are training step time plus, for B, the teacher's generation over the train "
-        "split (1.43 h); validation scoring is not included (ADR 0006).",
+        f"split ({data['teacher']['gpu_hours']:.2f} h); validation scoring is not included "
+        "(ADR 0006).",
         "",
         "Gap recovered = (method - raw 0.8B) / (raw 2B - raw 0.8B); share of A's gain = "
         "(method - raw 0.8B) / (A - raw 0.8B). #2's success criterion is a gap recovered of at "
@@ -352,7 +361,7 @@ def render(data: Mapping[str, Any]) -> str:
                         f"{100 * variants['unfiltered']['exact']:.1f}",
                     ],
                     [
-                        "validity check (tools offered, required arguments present)",
+                        "validity check (tools offered, non-optional arguments present)",
                         "no",
                         f"{variants['valid']['kept']:,}",
                         f"{100 * variants['valid']['exact']:.1f}",
@@ -367,8 +376,11 @@ def render(data: Mapping[str, Any]) -> str:
             ),
             "",
             f"The validity check drops {teacher.get('unknown function', 0):,} outputs calling a "
-            f"tool that wasn't offered and {teacher.get('missing required', 0):,} missing a "
-            "required argument. It moves the kept rows' agreement with gold from "
+            f"tool that wasn't offered and {teacher.get('missing required', 0):,} missing an "
+            "argument not marked optional. The same rule rejects "
+            f"{teacher['gold_not_valid']:,} gold answers, because xLAM doesn't always mark "
+            "optional arguments, so only the unknown-function count is a clean signal. It moves "
+            "the kept rows' agreement with gold from "
             f"{100 * variants['unfiltered']['exact']:.1f}% "
             f"to {100 * variants['valid']['exact']:.1f}%, "
             "so it is reported, not trained (ADR 0007).",
