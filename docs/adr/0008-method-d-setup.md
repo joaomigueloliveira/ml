@@ -23,7 +23,7 @@ chunk so neither model's full logits are ever held at once.
 | Loss | reverse KL (`beta=1.0`), exact over the vocabulary at every answer position |
 | Start | the raw 0.8B with a fresh LoRA, r16/α32 all-linear (ADR 0006) |
 | Teacher | Qwen3.5-2B, bf16, in the same process |
-| Data | train-split prompts, never gold; a seed-0 subset, no repeats; one sample per prompt |
+| Data | all train-split prompts, never gold (a seed-0 subset only under the cap); one sample per prompt |
 | Sampling | temperature 1.0, thinking off, the eval prompt, at most 1,024 tokens |
 | Optimiser | lr 2e-4, cosine, 3% warmup, 16 rows per step (ADR 0006, untuned) |
 | Length | one epoch over the train prompts, a checkpoint every 500 steps, as A and B; capped at about 12 GPU-hours |
@@ -37,7 +37,7 @@ chunk so neither model's full logits are ever held at once.
 - **Selection** follows ADR 0006: every checkpoint scored on validation with strict exact after the
   run, the best wins, ties to the earlier, then test, `test-clean` and BFCL for that one only. One
   seed. The checkpoint nearest B's 3.1 GPU-hours gives the matched-cost comparison with B.
-- **B→D**, continuing B's adapter with D's loss for the same budget, is a **pipeline**, reported as
+- **B→D**, continuing B's adapter with D's loss for one epoch, is a **pipeline**, reported as
   "B then D", not as method D. It becomes the next run if D doesn't beat B on validation; otherwise
   it stays a stretch goal. This amends ADR 0007, where D started from B.
 
