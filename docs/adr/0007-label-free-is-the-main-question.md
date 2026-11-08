@@ -1,6 +1,6 @@
 # 0007. Label-free distillation is the main question; SFT on labels is the reference
 
-Date: 2026-11-08 · Status: accepted
+Date: 2026-11-08 · Status: accepted · Amended 2026-11-08 by ADR 0008 (D starts from the raw student)
 
 ## Context
 
@@ -30,9 +30,9 @@ than the student. That is the question worth answering here.
 | With labels | A, filtered B, E | The reference: what labels buy |
 
 - **Order:** B → D → C → filtered B → E. The label-free methods run first; the with-labels runs follow.
-- **D starts from B's selected checkpoint**, not from the better of A and B (this replaces that
-  #35 decision). Starting from A would bring labels into a label-free method, and A is already better
-  than the teacher it would be pulled towards.
+- **D starts from the raw student**, like A, B and C (ADR 0008; first decided as "from B's
+  selected checkpoint", which replaced #35's "the better of A and B"). Starting from A would bring
+  labels into a label-free method. B then D is run as a pipeline, not as method D.
 - **C, logit distillation, is a main method**, run after D. It is the off-policy, dense-signal point
   between B and D, which tells whether D's gain comes from the teacher's probabilities or from
   training on the student's own outputs.

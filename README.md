@@ -10,7 +10,7 @@ labels buy (ADR 0007).
 |---|---|---|
 | **A** | SFT on gold labels | yes: the reference |
 | **B** | SFT on teacher outputs (sequence-level distillation) | no |
-| **D** | On-policy distillation: the student writes, the teacher scores every token ([Thinking Machines, 2025](https://thinkingmachines.ai/blog/on-policy-distillation/); [GKD](https://arxiv.org/abs/2306.13649)) | no |
+| **D** | On-policy distillation from the raw student: it writes, the teacher scores every token ([Thinking Machines, 2025](https://thinkingmachines.ai/blog/on-policy-distillation/); [GKD](https://arxiv.org/abs/2306.13649)) | no |
 | **C** | Logit distillation on the teacher's top-k token probabilities | no |
 | **filtered B** | B on the teacher outputs that match gold: what the teacher's mistakes cost | yes, as a filter |
 | **E** | GRPO, reward checked against gold: does RL add anything on top of SFT? | yes, in the reward |
@@ -75,7 +75,7 @@ and BFCL are run once, for the chosen one.
   with gold on only 67.6% of the train rows B learns from.
 
 B's GPU-hours include the 1.43 h the teacher took to answer the train split. Next: D, on-policy
-distillation starting from B (ADR 0007).
+distillation from the raw student at the same budget as one SFT run (ADR 0008).
 
 Training cost (#36): one epoch of LoRA SFT over the full train split takes about 3.9 GPU-hours on the
 RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the
@@ -95,6 +95,9 @@ Shortcuts taken on purpose, why, and what would make us revisit them.
   validation curve looks learning-rate-limited, e.g. its best checkpoint is an early one.
 - **One seed per method.** Comparisons rest on paired McNemar tests over the same test rows, not on
   seed-to-seed variance (ADR 0006). Revisit if two methods land within a point or two on validation.
+- **Method D's learning rate is untuned.** It reuses the SFT config (lr 2e-4) for a different loss,
+  and runs to a 3.8 GPU-hour budget rather than an epoch (ADR 0008). Revisit if its validation curve
+  collapses or is still climbing at the end of the budget.
 - **"Label-free" is about training only.** Checkpoints are chosen on labelled validation and scored on
   labelled test, as in practice, where a small labelled eval set is the norm (ADR 0007).
 - **One small teacher.** The 2B is right on about 65% of train rows; a stronger teacher would likely
