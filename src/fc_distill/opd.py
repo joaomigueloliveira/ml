@@ -8,6 +8,8 @@ uv run --no-sync fc-opd --n-rows 256 --save-steps 8      # smoke run: memory, en
 uv run --no-sync fc-opd --save-steps 500 --wandb          # method D: one epoch over train (#54)
 uv run --no-sync fc-opd --init-adapter runs/<B run>/checkpoint-1500 --save-steps 500 --wandb
                                                            # the B→D pipeline (#58)
+uv run --no-sync fc-opd --init-adapter … --lr 5e-5 --save-at 100,200,300,400,500,1000 --stop-at 1000
+                                                           # a first look, resumable to the epoch
 
 Starts from the raw student with a fresh LoRA, or with --init-adapter from a trained adapter (B
 then D, a pipeline, not method D), and the ADR 0006 optimiser settings; trains on
@@ -117,6 +119,14 @@ def init_adapter(checkpoint: Path, model: str) -> InitAdapter:
     return {"tag": f"from-{run}-{step}", "r": config["r"], "alpha": config["lora_alpha"]}
 
 
+def checkpoint_action(step: int, save_at: Sequence[int], stop_at: int | None) -> tuple[bool, bool]:
+    """(save, stop) after an optimizer step, for a run that saves at listed steps (--save-at) and
+    stops early (--stop-at) while its schedule still spans the whole epoch, so it can be resumed
+    (#58). With no list, saving is left to --save-steps."""
+    stop = stop_at is not None and step >= stop_at
+    return step in save_at or stop, stop
+
+
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--model", default=STUDENT, help="student: HF model id or local path")
@@ -167,13 +177,31 @@ def parse_args() -> argparse.Namespace:
     )
     ap.add_argument("--logging-steps", type=int, default=5)
     ap.add_argument("--save-steps", type=int, default=500)
+    ap.add_argument(
+        "--save-at",
+        type=lambda v: tuple(sorted(int(x) for x in v.split(","))),
+        default=(),
+        help="save only at these steps, e.g. 100,200,500 (replaces --save-steps)",
+    )
+    ap.add_argument(
+        "--stop-at",
+        type=int,
+        default=None,
+        help="stop after this step, with a checkpoint; the schedule still spans the epoch, so the "
+        "run can be resumed",
+    )
     ap.add_argument("--out", type=Path, default=None, help="default: runs/<run name>")
     ap.add_argument("--wandb", action="store_true", help="log the run to Weights & Biases")
     ap.add_argument(
         "--allow-dirty", action="store_true", help="run even with uncommitted changes (recorded)"
     )
     args = ap.parse_args()
-    if args.probe and args.probe_full_at % args.save_steps:
+    if args.save_at:
+        if args.probe and args.probe_full_at not in (*args.save_at, args.stop_at):
+            ap.error(
+                "--probe-full-at must be one of --save-at or --stop-at: the probe runs at saves"
+            )
+    elif args.probe and args.probe_full_at % args.save_steps:
         ap.error("--probe-full-at must be a multiple of --save-steps: the probe runs at saves")
     if not args.allow_dirty and git_state()["dirty"]:
         ap.error("uncommitted changes to tracked files; commit them or pass --allow-dirty")
@@ -277,6 +305,7 @@ def main() -> None:
                 },
                 "data": {"source": "prompts", "split": "train", "n_rows": len(records)},
                 "probe": {"rows": len(probe), "full_at_step": args.probe_full_at},
+                "checkpoints": {"save_at": list(args.save_at), "stop_at": args.stop_at},
             },
             "provenance": train_provenance(
                 base=args.model,
@@ -313,6 +342,15 @@ def main() -> None:
     compute = type("ComputeCallback", (ComputeLogger, TrainerCallback), {})(
         tracker, clock, device_used_bytes
     )
+
+    class CheckpointCallback(TrainerCallback):  # type: ignore[misc]
+        """--save-at and --stop-at: saves and an early stop on top of the epoch's schedule."""
+
+        def on_step_end(self, hf_args: Any, state: Any, control: Any, **kwargs: Any) -> Any:
+            save, stop = checkpoint_action(state.global_step, args.save_at, args.stop_at)
+            control.should_save = control.should_save or save
+            control.should_training_stop = control.should_training_stop or stop
+            return control
 
     class ProbeCallback(TrainerCallback):  # type: ignore[misc]
         """At each checkpoint: greedy answers on the probe rows, strict exact, to W&B. Runs after
@@ -396,7 +434,7 @@ def main() -> None:
             bf16=True,
             gradient_checkpointing=True,
             logging_steps=args.logging_steps,
-            save_strategy="steps",
+            save_strategy="no" if args.save_at else "steps",
             save_steps=args.save_steps,
             beta=1.0,  # reverse KL (ADR 0008)
             temperature=args.temperature,
@@ -410,7 +448,7 @@ def main() -> None:
             log_completions=True,
             num_completions_to_print=2,
         ),
-        callbacks=[compute, ProbeCallback()],
+        callbacks=[compute, CheckpointCallback(), ProbeCallback()],
     )
     trainer.train()
     trainer.save_model(str(out / "adapter"))
