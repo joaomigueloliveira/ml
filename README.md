@@ -15,7 +15,8 @@ labels buy (ADR 0007).
 | **filtered B** | B on the teacher outputs that match gold: what the teacher's mistakes cost | yes, as a filter |
 | **E** | GRPO, reward checked against gold: does RL add anything on top of SFT? | yes, in the reward |
 
-A, B and D are done; the rest run in table order, label-free methods first. Every result is
+A, B, D and filtered B are done, and B then D (a pipeline) was tried and dropped; C and E are
+next. Every result is
 reported next to the untrained baselines and A, with two numbers on `test-clean`: the gap recovered
 from the raw 0.8B towards the 2B, and the share of A's gain reached without labels.
 
@@ -61,6 +62,8 @@ and BFCL are run once, for the chosen one.
 | **B**: 0.8B, SFT on teacher outputs | no | 3.12 | 71.2 [69.2, 73.1] | 83.4 [81.5, 85.1] | 79.1 [76.5, 81.5] |
 | **D**: 0.8B, on-policy distillation | no | 13.54 | 70.5 [68.5, 72.5] | 83.3 [81.4, 85.0] | 82.5 [80.0, 84.7] |
 | D at B's budget (step 500) | no | 2.22 | 69.0 [67.0, 71.0] | 81.0 [79.1, 82.9] | 78.7 [76.1, 81.1] |
+| B then D (pipeline, step 400) | no | 4.77 | 69.8 [67.8, 71.8] | 81.7 [79.7, 83.5] | 78.9 [76.3, 81.3] |
+| **Filtered B**: 0.8B, SFT on teacher outputs that match gold | yes, as a filter | 2.50 | 74.8 [72.8, 76.6] | 85.7 [83.9, 87.3] | 80.8 [78.2, 83.1] |
 | **A**: 0.8B, SFT on gold labels | yes | 3.83 | 84.8 [83.1, 86.3] | 93.2 [91.9, 94.3] | 84.5 [82.1, 86.6] |
 
 - **Without labels, B beats its own teacher on xLAM.** On test-clean it recovers 130% of the
@@ -82,13 +85,27 @@ and BFCL are run once, for the chosen one.
 - **Per GPU-hour, B is cheaper.** D's selected checkpoint took 13.5 GPU-hours to tie B's 3.1. At
   B's budget (step 500, 2.2 GPU-hours) D is behind on test-clean, 81.0 vs 83.4 (p = 0.006), and
   level on BFCL. Validation, on 1,000 rows, called that a tie (p = 0.50).
+- **D's loss on top of B doesn't help.** B then D continues B's selected checkpoint with D's loss
+  (lr 5e-5, a fourth of D's, stopped at step 1000 of the epoch, #58). No checkpoint beat B on
+  validation; its best, step 400 (1.65 GPU-hours on top of B's), is behind B on test-clean (81.7 vs
+  83.4, p = 0.01) and level on BFCL (78.9 vs 79.1, p = 0.91), below D there (p = 0.0001). Likely
+  because the teacher that D's loss pulls towards is below B on xLAM, and on BFCL the gain D made
+  from the raw student didn't appear from B in 1,000 steps. One learning rate, one seed: the run
+  wasn't resumed.
 - **Labels still buy a lot.** A beats B and D on test and test-clean (p < 0.0001); the teacher's
   outputs agree with gold on only 67.6% of the train rows B learns from. On BFCL, A, D and the 2B
   are level.
+- **Training only on the teacher outputs that match gold gains about 2 points.** Filtered B
+  keeps only the 37,696 teacher outputs that lenient-match gold (#60). It beats B on test-clean
+  (85.7 vs 83.4, p = 0.007; 140% of the gap, 80% of A's gain), from fewer rows and fewer GPU-hours
+  (2.50 vs 3.12), and ties it on BFCL (80.8 vs 79.1, p = 0.18). A is still 7.5 points ahead on
+  test-clean and 3.7 on BFCL (p < 0.0001, p = 0.001): what's left likely comes from the 17,000
+  dropped rows, probably the harder ones, and gold's own wording. Filtered B also differs from B in
+  its schedule length (2,356 steps vs 3,277), and each is one seed.
 
-B's GPU-hours include the 1.43 h the teacher took to answer the train split; D's include its own
-sampling and the teacher's grading, inside every step. Next: B then D, B's adapter continued with
-D's loss (#58), since D didn't beat B on validation (ADR 0008).
+B's and filtered B's GPU-hours include the 1.43 h the teacher took to answer the train split; D's
+include its own sampling and the teacher's grading, inside every step; B then D's include B's.
+Next: logit distillation, C (#59).
 
 Training cost (#36): one epoch of LoRA SFT over the full train split takes about 3.9 GPU-hours on the
 RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the
@@ -110,7 +127,7 @@ Shortcuts taken on purpose, why, and what would make us revisit them.
   seed-to-seed variance (ADR 0006). Revisit if two methods land within a point or two on validation.
 - **Method D's learning rate is untuned.** It reuses the SFT config (lr 2e-4) for a different loss,
   (ADR 0008). Revisit if its validation curve collapses or is still climbing at the end of the
-  epoch.
+  epoch. B then D tried one rate, 5e-5, for 1,000 of the epoch's 3,410 steps.
 - **"Label-free" is about training only.** Checkpoints are chosen on labelled validation and scored on
   labelled test, as in practice, where a small labelled eval set is the norm (ADR 0007).
 - **One small teacher.** The 2B is right on about 65% of train rows; a stronger teacher would likely
@@ -187,6 +204,7 @@ src/fc_distill/
   report.py     baselines report with intervals and McNemar tests (fc-report)
   methods.py    method results: checkpoint selection, official scores, teacher-output counts (fc-report --methods)
   sft.py        methods A and B: LoRA SFT on gold labels or teacher outputs, GPU-hour accounting (fc-sft)
+  opd.py        method D: on-policy distillation with TRL's DistillationTrainer (fc-opd)
   tracking.py   W&B tracking shared by trainers and evals; GPU-hour accounting, provenance
   eval_tracking.py  how eval results are laid out in W&B (flat keys, slices table)
 notebooks/      01_dataset.ipynb: the dataset story and the split

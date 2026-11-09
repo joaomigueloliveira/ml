@@ -1,6 +1,6 @@
 # 0008. Method D: on-policy distillation from the raw student, one epoch
 
-Date: 2026-11-08 · Status: accepted · Amended 2026-11-09 (D at B's budget)
+Date: 2026-11-08 · Status: accepted · Amended 2026-11-09 (D at B's budget; B then D)
 
 ## Context
 
@@ -81,7 +81,18 @@ chunk so neither model's full logits are ever held at once.
 - On BFCL's first 32 rows, the ones fc-eval reruns without the adapter, D's changes 6 answers
   (B's: 16), under the 25% load check. Over all 1,000 BFCL rows it changes 515 (B: 528), and 69%
   of validation and test rows, so it is loaded; its BFCL runs pass an explicit
-  `--adapter-min-changed 0.15` (#64), set before any of their scores existed.
+  `--adapter-min-changed 0.15` (#64), set before any of their scores existed. B then D (6 of 32) and filtered B
+  (7 of 32; ADR 0007) failed the same check on BFCL only, with 19–25 of 32 changed on the other
+  splits, and took the same 0.15, chosen before any of their BFCL scores existed (B then D's test
+  scores did). Over all 1,000 BFCL rows they change 509 and 545 answers from the raw 0.8B's.
 - The learning rate is untuned for a loss it wasn't chosen for. The README lists it.
 - Temperature-1.0 samples from the raw student break the JSON more often than greedy decoding
   (parse_ok 84.5% on validation, greedy); those tokens are still graded by the teacher.
+- **B then D** (#58) ran at lr 5e-5 (LoRA continuing an SFT adapter; on-policy rates in the
+  literature sit well below the SFT ones), with the cosine schedule over the full epoch and a stop at
+  step 1000, saving at 100–500 and 1000 to see whether it gained fast. No checkpoint beat B on
+  validation (best: step 400, 70.4 vs 70.8, p = 0.69; the other five significantly worse). Step 400,
+  fixed as its checkpoint before any test run (official numbers were run anyway, to report the
+  pipeline), is behind B on `test-clean` (81.7 vs 83.4,
+  p = 0.01) and level on BFCL (78.9 vs 79.1). Not resumed. The probe's full-validation score at
+  step 1000 (70.3) was 19 rows above fc-eval's (68.4), more than the few rows expected above.

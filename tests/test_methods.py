@@ -161,3 +161,33 @@ def test_at_bs_budget_takes_the_best_checkpoint_within_bs_gpu_hours(
     md = render(data)
     assert "**D**, on-policy distillation (step 1500)" in md
     assert "| D | 500 | 2.00 |" in md
+
+
+def test_a_pipeline_counts_the_gpu_hours_of_the_checkpoint_it_continues(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    splits = tmp_path / "splits.json"
+    splits.write_text(json.dumps({"test-clean": []}))
+    val = range(10)
+    _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-0.8B", _rows(val, {0}), {})
+    _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-2B", _rows(val, set(range(5))), {})
+    by_key = {m.key: m for m in METHODS}
+    # B then D starts from B's selected checkpoint (step 1000, 3.1 GPU-h): its own 0.4 and 1.6
+    # GPU-h come on top, so neither of its checkpoints falls inside B's budget.
+    runs = {"B": {500: (1.6, 5), 1000: (3.1, 7)}, "B→D": {100: (0.4, 6), 400: (1.6, 7)}}
+    for key, checkpoints in runs.items():
+        for step, (hours, k) in checkpoints.items():
+            _write_run(
+                tmp_path / f"eval-validation-{by_key[key].train_run}-checkpoint-{step}",
+                _rows(val, set(range(k))),
+                {"adapter": {"gpu_hours": hours}},
+            )
+    monkeypatch.setattr(methods, "load_split", lambda split, path: [])
+
+    data = build(tmp_path, splits)
+
+    pipeline = data["methods"]["B→D"]
+    assert [c["gpu_hours"] for c in pipeline["checkpoints"]] == [3.5, 4.7]
+    assert pipeline["selected"] == 400
+    assert "B→D" not in data["at_b_budget"]
+    assert "**B→D**, B then on-policy distillation (step 400)" in render(data)
