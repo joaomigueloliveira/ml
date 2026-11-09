@@ -6,8 +6,11 @@ DistillationTrainer does the sampling, the teacher's forward pass and the chunke
 
 uv run --no-sync fc-opd --n-rows 256 --save-steps 8      # smoke run: memory, engine, throughput
 uv run --no-sync fc-opd --save-steps 500 --wandb          # method D: one epoch over train (#54)
+uv run --no-sync fc-opd --init-adapter runs/<B run>/checkpoint-1500 --save-steps 500 --wandb
+                                                           # the B→D pipeline (#58)
 
-Starts from the raw student with a fresh LoRA and the ADR 0006 optimiser settings; trains on
+Starts from the raw student with a fresh LoRA, or with --init-adapter from a trained adapter (B
+then D, a pipeline, not method D), and the ADR 0006 optimiser settings; trains on
 train prompts only, never gold. GPU-hours are the optimizer steps, which include the student's
 sampling and the teacher's forward pass. While it runs it logs the share of rollouts that parse,
 and at every checkpoint a greedy probe on 200 validation rows: watch-only, never used to stop the
@@ -48,6 +51,14 @@ VLLM_MAX_MODEL_LEN = 5120
 
 # The validation probe: a health check during training, never a result (ADR 0008).
 PROBE_ROWS = 200
+
+
+class InitAdapter(TypedDict):
+    """Where a run that continues an adapter starts: a run-name tag and the adapter's LoRA shape."""
+
+    tag: str
+    r: int
+    alpha: int
 
 
 class OpdRecord(TypedDict):
@@ -93,6 +104,19 @@ def vllm_vl_name(name: str) -> str:
     return name
 
 
+def init_adapter(checkpoint: Path, model: str) -> InitAdapter:
+    """Read a trained adapter's checkpoint (runs/train-<run>/checkpoint-<step>) to continue it with
+    D's loss (ADR 0008's B→D pipeline). Its rank and alpha are kept; one trained on another base
+    model is refused."""
+    config = json.loads((checkpoint / "adapter_config.json").read_text())
+    base = config["base_model_name_or_path"]
+    if base != model:
+        raise ValueError(f"{checkpoint} was trained on {base}, not {model}")
+    run = checkpoint.parent.name.removeprefix("train-")
+    step = checkpoint.name.removeprefix("checkpoint-")
+    return {"tag": f"from-{run}-{step}", "r": config["r"], "alpha": config["lora_alpha"]}
+
+
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--model", default=STUDENT, help="student: HF model id or local path")
@@ -106,8 +130,15 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--batch-size", type=int, default=4, help="rows per micro-batch")
     ap.add_argument("--grad-accum", type=int, default=4, help="micro-batches per optimizer step")
     ap.add_argument("--lr", type=float, default=2e-4)
-    ap.add_argument("--lora-r", type=int, default=16)
-    ap.add_argument("--lora-alpha", type=int, default=32)
+    ap.add_argument("--lora-r", type=int, default=16, help="fresh LoRA only")
+    ap.add_argument("--lora-alpha", type=int, default=32, help="fresh LoRA only")
+    ap.add_argument(
+        "--init-adapter",
+        type=Path,
+        default=None,
+        help="continue this adapter checkpoint instead of a fresh LoRA (B then D, ADR 0008); "
+        "its rank and alpha are kept",
+    )
     ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--max-completion-length", type=int, default=1024, help="the eval's cap")
     ap.add_argument(
@@ -187,7 +218,7 @@ def main() -> None:
     # Imported here so the rest of the package (and its tests) don't need the GPU extras.
     import torch
     from datasets import Dataset
-    from peft import LoraConfig
+    from peft import LoraConfig, PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
     from trl import DistillationConfig, DistillationTrainer
 
@@ -199,8 +230,11 @@ def main() -> None:
     records = [opd_record(ex) for ex in rows]
     validation = load_split("validation")
     probe = probe_rows(validation) if args.probe else []
+    start = init_adapter(args.init_adapter, args.model) if args.init_adapter else None
+    lora_r, lora_alpha = (start["r"], start["alpha"]) if start else (args.lora_r, args.lora_alpha)
     variant = (
-        f"r{args.lora_r}-b{args.batch_size}x{args.grad_accum}-n{len(records)}"
+        (f"{start['tag']}-" if start else "")
+        + f"r{lora_r}-b{args.batch_size}x{args.grad_accum}-n{len(records)}"
         + ("-longest" if args.longest else "")
         + ("" if args.vllm else "-hf")
     )
@@ -221,9 +255,10 @@ def main() -> None:
                 "student": args.model,
                 "teacher": args.teacher,
                 "seed": args.seed,
+                "init_adapter": str(args.init_adapter) if args.init_adapter else None,
                 "lora": {
-                    "r": args.lora_r,
-                    "alpha": args.lora_alpha,
+                    "r": lora_r,
+                    "alpha": lora_alpha,
                     "dropout": 0.0,
                     "target_modules": LORA_TARGETS,
                 },
@@ -256,6 +291,9 @@ def main() -> None:
     student = AutoModelForCausalLM.from_pretrained(
         args.model, revision=student_revision, dtype=torch.bfloat16
     )
+    if args.init_adapter:
+        # A trainable PeftModel, so TRL takes it as is and adds no adapter of its own.
+        student = PeftModel.from_pretrained(student, str(args.init_adapter), is_trainable=True)
     teacher = AutoModelForCausalLM.from_pretrained(
         args.teacher, revision=teacher_revision, dtype=torch.bfloat16
     )
@@ -335,9 +373,11 @@ def main() -> None:
         teacher_model=teacher,
         processing_class=tokenizer,
         train_dataset=Dataset.from_list([dict(r) for r in records]),
-        peft_config=LoraConfig(
-            r=args.lora_r,
-            lora_alpha=args.lora_alpha,
+        peft_config=None
+        if args.init_adapter
+        else LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
             lora_dropout=0.0,
             target_modules=LORA_TARGETS,
             task_type="CAUSAL_LM",
