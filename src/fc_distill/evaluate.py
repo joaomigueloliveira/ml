@@ -60,6 +60,21 @@ ADAPTER_CHECK_ROWS = 32
 ADAPTER_MIN_CHANGED = 0.25
 
 
+def adapter_check(
+    base_texts: Sequence[str], texts: Sequence[str], min_changed: float
+) -> dict[str, Any]:
+    """How many of the first rows the adapter changed against the base model; refuses the run if
+    fewer than `min_changed` of them, the sign of an adapter that never loaded. The counts go into
+    the run's summary."""
+    changed = sum(b != t for b, t in zip(base_texts, texts, strict=False))
+    if changed < min_changed * len(base_texts):
+        raise RuntimeError(
+            f"changed {changed} of the first {len(base_texts)} outputs: not loaded? If the adapter "
+            "is loaded (check its other splits), pass a lower --adapter-min-changed"
+        )
+    return {"rows": len(base_texts), "changed": changed, "min_changed": min_changed}
+
+
 class Suite(NamedTuple):
     """How one eval split is loaded, prompted and scored."""
 
@@ -105,6 +120,13 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--quantization", default=None)
     ap.add_argument(
         "--max-num-seqs", type=int, default=None, help="cap concurrent sequences (big models)"
+    )
+    ap.add_argument(
+        "--adapter-min-changed",
+        type=float,
+        default=ADAPTER_MIN_CHANGED,
+        help="share of the first rows the adapter must change; lower it only for an adapter shown "
+        "loaded on other splits (recorded in the summary)",
     )
     ap.add_argument(
         "--allow-dirty", action="store_true", help="run even with uncommitted changes (recorded)"
@@ -169,11 +191,12 @@ def main() -> None:
     if lora is not None:
         check = prompts[:ADAPTER_CHECK_ROWS]
         base = llm.chat(check, params, chat_template_kwargs=CHAT_TEMPLATE_KWARGS)
-        changed = sum(o.outputs[0].text != t for o, t in zip(base, texts, strict=False))
-        if changed < ADAPTER_MIN_CHANGED * len(check):
-            raise RuntimeError(
-                f"{args.adapter} changed {changed} of the first {len(check)} outputs: not loaded?"
+        try:
+            checked = adapter_check(
+                [o.outputs[0].text for o in base], texts[: len(check)], args.adapter_min_changed
             )
+        except RuntimeError as err:
+            raise RuntimeError(f"{args.adapter}: {err}") from None
 
     metrics = s.score(rows, texts, out)
     run: dict[str, Any] = {
@@ -184,7 +207,7 @@ def main() -> None:
         "provenance": provenance(args),
     }
     if ckpt is not None:
-        run["adapter"] = adapter_summary(ckpt)
+        run["adapter"] = adapter_summary(ckpt) | {"check": checked}
     write_summary(out, metrics, run)
     if args.wandb:
         log_to_wandb(out, args.wandb_group)
