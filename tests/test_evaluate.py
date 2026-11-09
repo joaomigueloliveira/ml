@@ -117,3 +117,22 @@ def test_each_checkpoint_of_a_training_run_gets_its_own_eval_run() -> None:
     assert evaluate.run_name("validation", "Qwen/Qwen3.5-0.8B", None) == (
         "eval-validation-Qwen_Qwen3.5-0.8B"
     )
+
+
+def test_adapter_check_refuses_an_adapter_that_changed_too_few_outputs() -> None:
+    base = ["same"] * 32
+    texts = ["other"] * 6 + ["same"] * 26  # 6 of 32 changed, under the default 25%
+    with pytest.raises(RuntimeError, match="changed 6 of the first 32"):
+        evaluate.adapter_check(base, texts, evaluate.ADAPTER_MIN_CHANGED)
+
+
+def test_adapter_check_with_a_lower_threshold_passes_and_records_what_it_saw() -> None:
+    # An adapter checked offline to be loaded (its other splits changed ~70% of rows) can pass
+    # with an explicit lower threshold; the counts go into the run's summary either way.
+    base = ["same"] * 32
+    texts = ["other"] * 6 + ["same"] * 26
+    assert evaluate.adapter_check(base, texts, 0.15) == {
+        "rows": 32,
+        "changed": 6,
+        "min_changed": 0.15,
+    }
