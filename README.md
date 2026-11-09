@@ -15,7 +15,7 @@ labels buy (ADR 0007).
 | **filtered B** | B on the teacher outputs that match gold: what the teacher's mistakes cost | yes, as a filter |
 | **E** | GRPO, reward checked against gold: does RL add anything on top of SFT? | yes, in the reward |
 
-A is done; the rest run in table order, label-free methods first. Every result is
+A, B and D are done; the rest run in table order, label-free methods first. Every result is
 reported next to the untrained baselines and A, with two numbers on `test-clean`: the gap recovered
 from the raw 0.8B towards the 2B, and the share of A's gain reached without labels.
 
@@ -59,6 +59,8 @@ and BFCL are run once, for the chosen one.
 | Qwen3.5-2B (teacher) | | 0 | 65.1 [63.0, 67.2] | 76.8 [74.7, 78.8] | 82.7 [80.2, 84.9] |
 | Qwen3.5-4B (reference) | | 0 | 68.8 [66.7, 70.7] | 81.8 [79.8, 83.6] | 82.7 [80.2, 84.9] |
 | **B**: 0.8B, SFT on teacher outputs | no | 3.12 | 71.2 [69.2, 73.1] | 83.4 [81.5, 85.1] | 79.1 [76.5, 81.5] |
+| **D**: 0.8B, on-policy distillation | no | 13.54 | 70.5 [68.5, 72.5] | 83.3 [81.4, 85.0] | 82.5 [80.0, 84.7] |
+| D at B's budget (step 500) | no | 2.22 | 69.0 [67.0, 71.0] | 81.0 [79.1, 82.9] | 78.7 [76.1, 81.1] |
 | **A**: 0.8B, SFT on gold labels | yes | 3.83 | 84.8 [83.1, 86.3] | 93.2 [91.9, 94.3] | 84.5 [82.1, 86.6] |
 
 - **Without labels, B beats its own teacher on xLAM.** On test-clean it recovers 130% of the
@@ -71,11 +73,21 @@ and BFCL are run once, for the chosen one.
 - **On tools it never trained on, it doesn't.** B gains 14.6 points on BFCL over the raw 0.8B but
   stays below the 2B (p = 0.003). Its format holds (parse_ok 98.8 vs 98.9); it loses on argument
   values, in every BFCL category. A ties the 2B there (p = 0.20).
-- **Labels still buy a lot.** A beats B on every eval (p < 0.0001); the teacher's outputs agree
-  with gold on only 67.6% of the train rows B learns from.
+- **On-policy distillation (D) ties B on xLAM, and matches the teacher on unseen tools.** On
+  test-clean D and B are the same (83.3 vs 83.4; 60 and 62 rows only one of them gets right,
+  p = 0.93). On BFCL D reaches 82.5, level with the 2B (p = 0.93) and above B (p = 0.0004): learning
+  from the teacher's grades on its own answers carried over to tools it never trained on, where
+  copying the teacher's answers didn't.
+- **Per GPU-hour, B is cheaper.** D's selected checkpoint took 13.5 GPU-hours to tie B's 3.1. At
+  B's budget (step 500, 2.2 GPU-hours) D is behind on test-clean, 81.0 vs 83.4 (p = 0.006), and
+  level on BFCL. Validation, on 1,000 rows, called that a tie (p = 0.50).
+- **Labels still buy a lot.** A beats B and D on test and test-clean (p < 0.0001); the teacher's
+  outputs agree with gold on only 67.6% of the train rows B learns from. On BFCL, A, D and the 2B
+  are level.
 
-B's GPU-hours include the 1.43 h the teacher took to answer the train split. Next: D, on-policy
-distillation from the raw student, one epoch like A and B (ADR 0008).
+B's GPU-hours include the 1.43 h the teacher took to answer the train split; D's include its own
+sampling and the teacher's grading, inside every step. Next: B then D, B's adapter continued with
+D's loss (#58), since D didn't beat B on validation (ADR 0008).
 
 Training cost (#36): one epoch of LoRA SFT over the full train split takes about 3.9 GPU-hours on the
 RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the

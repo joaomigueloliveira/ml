@@ -109,20 +109,21 @@ def test_build_selects_per_method_compares_and_renders(
     assert "Inside its interval" in md
 
 
-def test_matched_cost_scores_each_label_free_method_nearest_bs_gpu_hours(
+def test_at_bs_budget_takes_the_best_checkpoint_within_bs_gpu_hours(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     splits = tmp_path / "splits.json"
-    splits.write_text(json.dumps({"test-clean": []}))
+    splits.write_text(json.dumps({"test-clean": [0, 1, 2, 3]}))
     val = range(10)
     _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-0.8B", _rows(val, {0}), {})
     _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-2B", _rows(val, set(range(5))), {})
     by_key = {m.key: m for m in METHODS}
-    # B's best is step 1000 at 3.1 GPU-h. D's checkpoints sit at 2.0, 4.0 and 6.0 GPU-h, and D's
-    # best is the last; the matched-cost point is 4.0 (|4.0 - 3.1| < |2.0 - 3.1|), not the best.
+    # B's best is step 1000 at 3.1 GPU-h. D's checkpoints: 1.0, 2.0 (inside B's budget), then 4.0
+    # (nearer to 3.1 than 1.0, but over it) and its best, 6.0. The budget rule takes the best of
+    # the first two on validation, step 500, never the nearest or the overall best.
     runs = {
         "B": {500: (1.6, 5), 1000: (3.1, 7)},
-        "D": {500: (2.0, 6), 1000: (4.0, 5), 1500: (6.0, 8)},
+        "D": {250: (1.0, 4), 500: (2.0, 6), 1000: (4.0, 7), 1500: (6.0, 8)},
     }
     for key, checkpoints in runs.items():
         for step, (hours, k) in checkpoints.items():
@@ -131,15 +132,32 @@ def test_matched_cost_scores_each_label_free_method_nearest_bs_gpu_hours(
                 _rows(val, set(range(k))),
                 {"adapter": {"gpu_hours": hours}},
             )
+    # Official runs: B's selected checkpoint and D's at-budget one. Test-clean is ids 0-3.
+    test = range(6)
+    _write_run(
+        tmp_path / f"eval-test-{by_key['B'].train_run}-checkpoint-1000", _rows(test, {0, 1, 2}), {}
+    )
+    _write_run(
+        tmp_path / f"eval-test-{by_key['D'].train_run}-checkpoint-500", _rows(test, {0, 4}), {}
+    )
     monkeypatch.setattr(methods, "load_split", lambda split, path: [])
 
     data = build(tmp_path, splits)
 
     assert data["methods"]["D"]["selected"] == 1500
-    matched = data["matched_cost"]["D"]
-    assert (matched["step"], matched["gpu_hours"], matched["exact"]) == (1000, 4.0, 0.5)
-    assert (matched["vs_b"]["only_a_right"], matched["vs_b"]["only_b_right"]) == (2, 0)
-    assert "B" not in data["matched_cost"]
+    budget = data["at_b_budget"]["D"]
+    assert (budget["step"], budget["gpu_hours"], budget["exact"]) == (500, 2.0, 0.6)
+    assert (
+        budget["vs_b"]["validation"]["only_a_right"],
+        budget["vs_b"]["validation"]["only_b_right"],
+    ) == (1, 0)
+    # test-clean: B right on 0, 1, 2; D on 0 only
+    assert budget["official"]["test-clean"]["n"] == 4
+    assert (
+        budget["vs_b"]["test-clean"]["only_a_right"],
+        budget["vs_b"]["test-clean"]["only_b_right"],
+    ) == (2, 0)
+    assert "B" not in data["at_b_budget"]
     md = render(data)
     assert "**D**, on-policy distillation (step 1500)" in md
-    assert "| D | 1000 | 4.00 |" in md
+    assert "| D | 500 | 2.00 |" in md
