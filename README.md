@@ -75,9 +75,10 @@ and BFCL are run once, for the chosen one.
   values, in every BFCL category. A ties the 2B there (p = 0.20).
 - **On-policy distillation (D) ties B on xLAM, and matches the teacher on unseen tools.** On
   test-clean D and B are the same (83.3 vs 83.4; 60 and 62 rows only one of them gets right,
-  p = 0.93). On BFCL D reaches 82.5, level with the 2B (p = 0.93) and above B (p = 0.0004): learning
-  from the teacher's grades on its own answers carried over to tools it never trained on, where
-  copying the teacher's answers didn't.
+  p = 0.93): 129% of the gap to the 2B, 74% of A's gain. On BFCL D reaches 82.5, level with the 2B
+  (p = 0.93) and above B (p = 0.0004), from argument values and function choice, not format. It
+  took 4x B's GPU-hours: at B's budget D is level with B on BFCL too, and with one seed and two BFCL
+  points the data can't tell on-policy training from more training.
 - **Per GPU-hour, B is cheaper.** D's selected checkpoint took 13.5 GPU-hours to tie B's 3.1. At
   B's budget (step 500, 2.2 GPU-hours) D is behind on test-clean, 81.0 vs 83.4 (p = 0.006), and
   level on BFCL. Validation, on 1,000 rows, called that a tie (p = 0.50).

@@ -37,12 +37,14 @@ chunk so neither model's full logits are ever held at once.
 - **Selection** follows ADR 0006: every checkpoint scored on validation with strict exact after the
   run, the best wins, ties to the earlier, then test, `test-clean` and BFCL for that one only. One
   seed.
-- **At B's budget** (amended 2026-11-09, after the run, before any of its test numbers existed):
-  each label-free method after B is also reported at its best checkpoint on validation within B's
-  GPU-hours, with test, `test-clean` and BFCL for that checkpoint too. It replaces "the checkpoint
-  nearest B's 3.1 GPU-hours, on validation": for D both pick step 500, but on 1,000 validation
-  rows the gap to B was a tie (p = 0.50), and only `test-clean`'s 1,625 rows showed it
-  (p = 0.006, `results/methods.md`). The selected checkpoint is still the one D is reported as.
+- **At B's budget** (amended 2026-11-09): each label-free method after B is also reported at its
+  best checkpoint on validation within B's GPU-hours, with test, `test-clean` and BFCL for that
+  checkpoint too. It replaces "the checkpoint nearest B's 3.1 GPU-hours, on validation only",
+  where 1,000 validation rows called D and B a tie (p = 0.50). The rule was set after the
+  selected checkpoint's test and `test-clean` runs, and before step 500's test runs and any BFCL
+  run of D. It had nothing to choose: step 500 is D's only checkpoint within 3.12 GPU-hours, the
+  checkpoint the old rule already named. Its result, behind B on `test-clean` (p = 0.006), is in
+  `results/methods.md`. D is still reported as its selected checkpoint.
 - **Monitoring during the run**, watch only: the loss, the parse rate of the student's rollouts
   and, at each checkpoint, a probe: greedy answers on a fixed 200-row validation subset, and on all
   of validation once, at step 1000. It never stops the run or chooses the checkpoint; the test split
@@ -76,9 +78,10 @@ chunk so neither model's full logits are ever held at once.
 - The smoke run (#53) put an epoch at about 12.3 GPU-hours, so D got the full epoch. It ran slower
   than the smoke run (about 15 s a step against 13) and cost 15.4 GPU-hours (#54); the cap was
   never meant to cut a run short once started.
-- D's adapter changes fewer BFCL answers than the SFT adapters do (6 of the first 32, against B's
-  16), under fc-eval's 25% load check; its BFCL runs pass an explicit `--adapter-min-changed 0.15`
-  (#64), justified by the 69% of validation and test rows the same adapter changes.
+- On BFCL's first 32 rows, the ones fc-eval reruns without the adapter, D's changes 6 answers
+  (B's: 16), under the 25% load check. Over all 1,000 BFCL rows it changes 515 (B: 528), and 69%
+  of validation and test rows, so it is loaded; its BFCL runs pass an explicit
+  `--adapter-min-changed 0.15` (#64), set before any of their scores existed.
 - The learning rate is untuned for a loss it wasn't chosen for. The README lists it.
 - Temperature-1.0 samples from the raw student break the JSON more often than greedy decoding
   (parse_ok 84.5% on validation, greedy); those tokens are still graded by the teacher.
