@@ -90,7 +90,8 @@ and BFCL are run once, for the chosen one.
   validation; its best, step 400 (1.65 GPU-hours on top of B's), is behind B on test-clean (81.7 vs
   83.4, p = 0.01) and level on BFCL (78.9 vs 79.1, p = 0.91), below D there (p = 0.0001). Likely
   because the teacher that D's loss pulls towards is below B on xLAM, and on BFCL the gain D made
-  from the raw student didn't appear from B in 1,000 steps. One learning rate, one seed: the run wasn't resumed.
+  from the raw student didn't appear from B in 1,000 steps. One learning rate, one seed: the run
+  wasn't resumed.
 - **Labels still buy a lot.** A beats B and D on test and test-clean (p < 0.0001); the teacher's
   outputs agree with gold on only 67.6% of the train rows B learns from. On BFCL, A, D and the 2B
   are level.
