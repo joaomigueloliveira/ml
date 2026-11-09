@@ -1,6 +1,6 @@
 import pytest
 
-from fc_distill.stats import interval, mcnemar, metric_block, wilson
+from fc_distill.stats import holm, interval, mcnemar, metric_block, wilson
 
 
 def test_wilson_matches_known_values_and_stays_in_bounds():
@@ -43,3 +43,10 @@ def test_mcnemar_is_one_when_nothing_differs_or_split_evenly():
 def test_mcnemar_rejects_unpaired_input():
     with pytest.raises(ValueError, match="same length"):
         mcnemar([True], [True, False])
+
+
+def test_holm_scales_the_smallest_p_by_the_number_of_tests_and_keeps_the_order() -> None:
+    # Sorted 0.01, 0.02, 0.04, 0.3: 4 x 0.01, 3 x 0.02, 2 x 0.04, then max(0.08, 1 x 0.3); a
+    # later p never ends up below an earlier one, and nothing exceeds 1.
+    assert holm([0.04, 0.01, 0.02, 0.3]) == pytest.approx([0.08, 0.04, 0.06, 0.3])
+    assert holm([0.5, 0.6]) == pytest.approx([1.0, 1.0])

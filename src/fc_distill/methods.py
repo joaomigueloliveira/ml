@@ -10,8 +10,13 @@ are the reference (ADR 0007). Each label-free method after B is also reported at
 best checkpoint on validation within B's GPU-hours, with that checkpoint's official scores once
 they exist (ADR 0008). A pipeline (B→D) continues another method's selected checkpoint, and its
 GPU-hours start from that checkpoint's.
+
+The README's pairwise claims are listed again under strict exact (Holm-adjusted together), lenient
+exact and, on test-clean, without the rows whose gold writes out an optional argument at its
+default; each method's score on those rows is reported apart (#68).
 """
 
+import csv
 import json
 import re
 from collections.abc import Mapping, Sequence
@@ -21,7 +26,7 @@ from typing import Any, NamedTuple
 from fc_distill.data import DEFAULT_SPLITS_PATH, Example, load_split
 from fc_distill.evaluate import read_run
 from fc_distill.scoring import is_optional, parse_calls
-from fc_distill.stats import mcnemar, metric_block
+from fc_distill.stats import holm, mcnemar, metric_block
 
 
 class Method(NamedTuple):
@@ -58,6 +63,30 @@ DEFAULT_JSON = Path("results/methods.json")
 DEFAULT_MD = Path("results/methods.md")
 _STEP = re.compile(r"-checkpoint-(\d+)$")
 TEACHER_RUN = "eval-train-Qwen_Qwen3.5-2B"
+DEFAULT_AUDIT = Path("data/audit/test_labels.csv")
+DEFAULTS_CATEGORY = "default made explicit"
+# The pairwise claims the README states (#68): Holm-adjusted together, and each shown under strict
+# and lenient exact and, on test-clean, without the rows whose gold writes out a default.
+CLAIMS = (
+    ("B", "raw 2B", "test-clean"),
+    ("B", "raw 2B", "bfcl"),
+    ("A", "raw 2B", "bfcl"),
+    ("D", "B", "test-clean"),
+    ("D", "raw 2B", "bfcl"),
+    ("D", "B", "bfcl"),
+    ("D@500", "B", "test-clean"),
+    ("D@500", "B", "bfcl"),
+    ("B→D", "B", "test-clean"),
+    ("B→D", "B", "bfcl"),
+    ("B→D", "D", "bfcl"),
+    ("A", "B", "test-clean"),
+    ("A", "D", "test-clean"),
+    ("A", "D", "bfcl"),
+    ("Bf", "B", "test-clean"),
+    ("Bf", "B", "bfcl"),
+    ("A", "Bf", "test-clean"),
+    ("A", "Bf", "bfcl"),
+)
 
 
 def select(checkpoints: Sequence[Mapping[str, Any]]) -> tuple[int, list[int]]:
@@ -136,12 +165,31 @@ def _records(runs: Path, run: str, split: str, clean: set[int]) -> list[dict[str
     return [r for r in records if r["id"] in clean] if split == "test-clean" else records
 
 
-def build(runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH) -> dict[str, Any]:
+def _paired(
+    a: Mapping[Any, bool] | None, b: Mapping[Any, bool] | None, ids: Sequence[Any] | None = None
+) -> dict[str, Any] | None:
+    """McNemar of a against b on the rows of b (or on `ids`), or None if either is missing."""
+    if a is None or b is None:
+        return None
+    order = sorted(b if ids is None else ids, key=str)
+    return mcnemar([a[i] for i in order], [b[i] for i in order])
+
+
+def build(
+    runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH, audit_path: Path = DEFAULT_AUDIT
+) -> dict[str, Any]:
     clean = set(json.loads(splits_path.read_text())["test-clean"])
+    with audit_path.open() as f:
+        defaults_rows = {
+            int(r["id"]) for r in csv.DictReader(f) if r["category"] == DEFAULTS_CATEGORY
+        } & clean
     exact: dict[tuple[str, str], dict[Any, bool]] = {}
+    lenient: dict[tuple[str, str], dict[Any, bool]] = {}
 
     def keep(who: str, split: str, records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         exact[who, split] = {r["id"]: r["exact"] for r in records}
+        if split != "bfcl":
+            lenient[who, split] = {r["id"]: r["lenient_exact"] for r in records}
         return metric_block(records, ("exact",) if split == "bfcl" else METRICS)
 
     validation = {
@@ -185,6 +233,7 @@ def build(runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH) -> dict[str, Any]
         checkpoints.sort(key=lambda c: c["step"])
         step, tied = select(checkpoints)
         exact[m.key, "validation"] = exact[f"{m.key}@{step}", "validation"]
+        lenient[m.key, "validation"] = lenient[f"{m.key}@{step}", "validation"]
         official = {}
         for split in OFFICIAL:
             run = (
@@ -240,11 +289,12 @@ def build(runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH) -> dict[str, Any]
                     official[split] = keep(who, split, records)
             vs_b = {}
             for split in ("validation", *official):
-                b_rows, own = exact.get(("B", split)), exact[who, split]
-                if b_rows is None:
+                strict = _paired(exact.get(("B", split)), exact[who, split])
+                if strict is None:
                     continue
-                order = sorted(b_rows, key=str)
-                vs_b[split] = mcnemar([b_rows[i] for i in order], [own[i] for i in order])
+                vs_b[split] = strict | {
+                    "lenient": _paired(lenient.get(("B", split)), lenient.get((who, split)))
+                }
             at_b_budget[m.key] = point | {"official": official, "vs_b": vs_b}
 
     headline = {}
@@ -260,13 +310,48 @@ def build(runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH) -> dict[str, Any]
     for key in methods:
         for other in ("raw 0.8B", "raw 2B", *(k for k in methods if k < key)):
             for split in ("validation", *OFFICIAL):
-                a_rows = exact.get((ids.get(other, other), split))
-                b_rows = exact.get((key, split))
-                if a_rows is None or b_rows is None:
+                first = ids.get(other, other)
+                result = _paired(exact.get((first, split)), exact.get((key, split)))
+                if result is None:
                     continue
-                order = sorted(b_rows, key=str)
-                result = mcnemar([a_rows[i] for i in order], [b_rows[i] for i in order])
-                comparisons.append({"a": other, "b": key, "eval": split} | result)
+                loose = _paired(lenient.get((first, split)), lenient.get((key, split)))
+                comparisons.append(
+                    {"a": other, "b": key, "eval": split} | result | {"lenient": loose}
+                )
+
+    claims = []
+    for one, two, split in CLAIMS:
+        ka, kb = ids.get(one, one), ids.get(two, two)
+        result = _paired(exact.get((ka, split)), exact.get((kb, split)))
+        if result is None:
+            continue
+        without = None
+        if split == "test-clean":
+            rest = sorted(clean - defaults_rows)
+            without = _paired(exact[ka, split], exact[kb, split], rest)
+        loose = _paired(lenient.get((ka, split)), lenient.get((kb, split)))
+        claims.append(
+            {"a": one, "b": two, "eval": split}
+            | result
+            | {"lenient": loose, "without_defaults": without}
+        )
+    for claim, adjusted in zip(claims, holm([c["p"] for c in claims]), strict=True):
+        claim["holm_p"] = adjusted
+
+    defaults: dict[str, Any] = {}
+    whos = [*BASELINES.values(), *methods, *(f"{k}@{c['step']}" for k, c in at_b_budget.items())]
+    for who in whos:
+        rows = exact.get((ids.get(who, who), "test-clean"))
+        if rows is None or not defaults_rows:
+            continue
+        others = clean - defaults_rows
+        defaults[who] = {
+            "rows": len(defaults_rows),
+            "default_made_explicit": round(
+                sum(rows[i] for i in defaults_rows) / len(defaults_rows), 4
+            ),
+            "rest": round(sum(rows[i] for i in others) / len(others), 4),
+        }
     teacher: dict[str, Any] | None = None
     if (runs / TEACHER_RUN / "summary.json").exists():
         t_summary, t_records = read_run(runs / TEACHER_RUN)
@@ -281,6 +366,8 @@ def build(runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH) -> dict[str, Any]
         "headline": headline,
         "at_b_budget": at_b_budget,
         "mcnemar": comparisons,
+        "claims": claims,
+        "defaults": defaults,
     }
 
 
@@ -289,6 +376,17 @@ def _pct(block: Mapping[str, Any] | None, metric: str = "exact") -> str:
         return "-"
     low, high = block[f"{metric}_ci"]
     return f"{100 * block[metric]:.1f} [{100 * low:.1f}, {100 * high:.1f}]"
+
+
+def _p(p: float) -> str:
+    return "< 0.0001" if p < 1e-4 else f"{p:.4f}"
+
+
+def _pair(result: Mapping[str, Any] | None) -> str:
+    """'only a / only b, p' for a McNemar result, or '-'."""
+    if result is None:
+        return "-"
+    return f"{result['only_a_right']} / {result['only_b_right']}, {_p(result['p'])}"
 
 
 def _table(head: Sequence[str], rows: Sequence[Sequence[str]]) -> list[str]:
@@ -366,6 +464,52 @@ def render(data: Mapping[str, Any]) -> str:
             for k, v in data["headline"].items()
         ],
     )
+    if data["claims"]:
+        out += [
+            "",
+            "## README claims",
+            "",
+            "Each pairwise comparison the README states, as first / second right on the rows where "
+            "only one is (#68). Strict exact is the headline; Holm adjusts its p-values over the "
+            "claims listed. Lenient exact ignores optional arguments at their declared default "
+            "(BFCL has no lenient score). On test-clean, the last column leaves out the rows the "
+            "audit calls sound but whose gold writes out an optional argument at its default "
+            '("default made explicit").',
+            "",
+        ]
+        out += _table(
+            ["First", "Second", "Eval", "Strict", "Holm p", "Lenient", "Strict, no default rows"],
+            [
+                [
+                    c["a"],
+                    c["b"],
+                    c["eval"],
+                    _pair(c),
+                    _p(c["holm_p"]),
+                    _pair(c["lenient"]),
+                    _pair(c["without_defaults"]),
+                ]
+                for c in data["claims"]
+            ],
+        )
+    if data["defaults"]:
+        n = next(iter(data["defaults"].values()))["rows"]
+        out += [
+            "",
+            "## Default made explicit",
+            "",
+            f"Strict exact on the {n} test-clean rows whose gold writes out an optional argument "
+            "at its default, and on the rest. Matching that convention is a habit of xLAM's "
+            "labels, not of the task, so a method can win or lose here on style alone.",
+            "",
+        ]
+        out += _table(
+            ["Model", f"Default made explicit ({n})", "Rest"],
+            [
+                [who, f"{100 * v['default_made_explicit']:.1f}", f"{100 * v['rest']:.1f}"]
+                for who, v in data["defaults"].items()
+            ],
+        )
     if data["at_b_budget"]:
         b = methods["B"]
         b_h = next(c for c in b["checkpoints"] if c["step"] == b["selected"])["gpu_hours"]
@@ -388,14 +532,22 @@ def render(data: Mapping[str, Any]) -> str:
         )
         out += [""]
         out += _table(
-            ["Method", "Eval", "Only B right", "Only it right", "p"],
+            [
+                "Method",
+                "Eval",
+                "Only B right",
+                "Only it right",
+                "p",
+                "Lenient: only B / only it, p",
+            ],
             [
                 [
                     key,
                     split,
                     str(v["only_a_right"]),
                     str(v["only_b_right"]),
-                    "< 0.0001" if v["p"] < 1e-4 else f"{v['p']:.4f}",
+                    _p(v["p"]),
+                    _pair(v.get("lenient")),
                 ]
                 for key, c in data["at_b_budget"].items()
                 for split, v in c["vs_b"].items()
@@ -423,7 +575,16 @@ def render(data: Mapping[str, Any]) -> str:
         ]
     out += ["## Paired comparisons", "", "Exact McNemar test on strict exact, row by row.", ""]
     out += _table(
-        ["A", "B", "Eval", "Rows", "Only A right", "Only B right", "p"],
+        [
+            "A",
+            "B",
+            "Eval",
+            "Rows",
+            "Only A right",
+            "Only B right",
+            "p",
+            "Lenient: only A / only B, p",
+        ],
         [
             [
                 c["a"],
@@ -432,7 +593,8 @@ def render(data: Mapping[str, Any]) -> str:
                 f"{c['n']:,}",
                 str(c["only_a_right"]),
                 str(c["only_b_right"]),
-                "< 0.0001" if c["p"] < 1e-4 else f"{c['p']:.4f}",
+                _p(c["p"]),
+                _pair(c.get("lenient")),
             ]
             for c in data["mcnemar"]
         ],
