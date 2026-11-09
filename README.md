@@ -88,18 +88,19 @@ and BFCL are run once, for the chosen one.
 - **D's loss on top of B doesn't help.** B then D continues B's selected checkpoint with D's loss
   (lr 5e-5, a fourth of D's, stopped at step 1000 of the epoch, #58). No checkpoint beat B on
   validation; its best, step 400 (1.65 GPU-hours on top of B's), is behind B on test-clean (81.7 vs
-  83.4, p = 0.01) and level on BFCL (78.9 vs 79.1, p = 0.91), below D there (p = 0.0001). The
-  teacher that D's loss pulls towards is below B on xLAM, and on BFCL the gain D made from the raw
-  student didn't appear from B in 1,000 steps. One learning rate, one seed: the run wasn't resumed.
+  83.4, p = 0.01) and level on BFCL (78.9 vs 79.1, p = 0.91), below D there (p = 0.0001). Likely
+  because the teacher that D's loss pulls towards is below B on xLAM, and on BFCL the gain D made
+  from the raw student didn't appear from B in 1,000 steps. One learning rate, one seed: the run wasn't resumed.
 - **Labels still buy a lot.** A beats B and D on test and test-clean (p < 0.0001); the teacher's
   outputs agree with gold on only 67.6% of the train rows B learns from. On BFCL, A, D and the 2B
   are level.
-- **The teacher's mistakes cost B about 2 points, the rest of A's lead is elsewhere.** Filtered B
+- **Training only on the teacher outputs that match gold gains about 2 points.** Filtered B
   keeps only the 37,696 teacher outputs that lenient-match gold (#60). It beats B on test-clean
   (85.7 vs 83.4, p = 0.007; 140% of the gap, 80% of A's gain), from fewer rows and fewer GPU-hours
   (2.50 vs 3.12), and ties it on BFCL (80.8 vs 79.1, p = 0.18). A is still 7.5 points ahead on
-  test-clean and 3.7 on BFCL (p < 0.0001, p = 0.001): what's left comes from the other 17,000 rows
-  and gold's own wording.
+  test-clean and 3.7 on BFCL (p < 0.0001, p = 0.001): what's left likely comes from the 17,000
+  dropped rows, probably the harder ones, and gold's own wording. Filtered B also differs from B in
+  its schedule length (2,356 steps vs 3,277), and each is one seed.
 
 B's and filtered B's GPU-hours include the 1.43 h the teacher took to answer the train split; D's
 include its own sampling and the teacher's grading, inside every step; B then D's include B's.
