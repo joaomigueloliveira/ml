@@ -248,6 +248,8 @@ def test_claims_are_reported_under_strict_lenient_and_without_the_default_rows(
         "default_made_explicit": 0.0,
         "rest": round(2 / 3, 4),
     }
+    # Claims whose runs don't exist here are listed, not silently dropped from Holm's family.
+    assert "A vs B, test-clean" in data["claims_missing"]
     md = render(data)
     assert "## README claims" in md
     assert "## Default made explicit" in md

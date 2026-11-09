@@ -33,7 +33,7 @@ Gap recovered = (method - raw 0.8B) / (raw 2B - raw 0.8B); share of A's gain = (
 
 ## README claims
 
-Each pairwise comparison the README states, as first / second right on the rows where only one is (#68). Strict exact is the headline; Holm adjusts its p-values over the claims listed. Lenient exact ignores optional arguments at their declared default (BFCL has no lenient score). On test-clean, the last column leaves out the rows the audit calls sound but whose gold writes out an optional argument at its default ("default made explicit").
+Each pairwise comparison the README states, as first / second right on the rows where only one is (#68). Strict exact is the headline; Holm adjusts its p-values over the claims listed. Lenient exact ignores optional arguments passed at their declared default or null, on either side (BFCL has no lenient score). On test-clean, the last column leaves out the rows the audit tags "default made explicit" (see below). The lenient and last columns give unadjusted p-values.
 
 | First | Second | Eval | Strict | Holm p | Lenient | Strict, no default rows |
 |---|---:|---:|---:|---:|---:|---:|
@@ -58,7 +58,7 @@ Each pairwise comparison the README states, as first / second right on the rows 
 
 ## Default made explicit
 
-Strict exact on the 123 test-clean rows whose gold writes out an optional argument at its default, and on the rest. Matching that convention is a habit of xLAM's labels, not of the task, so a method can win or lose here on style alone.
+Strict exact on the 123 test-clean rows the audit tags "default made explicit", and on the rest. On these rows gold and a baseline differed only by an optional argument at its default, in either direction: gold wrote it and the model left it out, or the reverse. Which way gold goes is xLAM's labelling habit, so a method can gain or lose here by matching that habit, though some of these rows also hold content errors. The audit only looked at rows a baseline got wrong, so the baselines score low here by construction, and the rest still holds rows where gold passes a default that no audited model disagreed with.
 
 | Model | Default made explicit (123) | Rest |
 |---|---:|---:|

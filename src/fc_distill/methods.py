@@ -12,8 +12,9 @@ they exist (ADR 0008). A pipeline (B→D) continues another method's selected ch
 GPU-hours start from that checkpoint's.
 
 The README's pairwise claims are listed again under strict exact (Holm-adjusted together), lenient
-exact and, on test-clean, without the rows whose gold writes out an optional argument at its
-default; each method's score on those rows is reported apart (#68).
+exact and, on test-clean, without the rows the audit tags "default made explicit" (gold and a
+baseline differed only by an optional argument at its default, either way); each method's score on
+those rows is reported apart (#68).
 """
 
 import csv
@@ -66,7 +67,7 @@ TEACHER_RUN = "eval-train-Qwen_Qwen3.5-2B"
 DEFAULT_AUDIT = Path("data/audit/test_labels.csv")
 DEFAULTS_CATEGORY = "default made explicit"
 # The pairwise claims the README states (#68): Holm-adjusted together, and each shown under strict
-# and lenient exact and, on test-clean, without the rows whose gold writes out a default.
+# and lenient exact and, on test-clean, without the "default made explicit" rows.
 CLAIMS = (
     ("B", "raw 2B", "test-clean"),
     ("B", "raw 2B", "bfcl"),
@@ -319,11 +320,14 @@ def build(
                     {"a": other, "b": key, "eval": split} | result | {"lenient": loose}
                 )
 
-    claims = []
+    claims: list[dict[str, Any]] = []
+    claims_missing: list[str] = []
     for one, two, split in CLAIMS:
         ka, kb = ids.get(one, one), ids.get(two, two)
         result = _paired(exact.get((ka, split)), exact.get((kb, split)))
         if result is None:
+            # Left out of Holm's family too; the report lists it so the family can't shrink unseen.
+            claims_missing.append(f"{one} vs {two}, {split}")
             continue
         without = None
         if split == "test-clean":
@@ -367,6 +371,7 @@ def build(
         "at_b_budget": at_b_budget,
         "mcnemar": comparisons,
         "claims": claims,
+        "claims_missing": claims_missing,
         "defaults": defaults,
     }
 
@@ -471,12 +476,14 @@ def render(data: Mapping[str, Any]) -> str:
             "",
             "Each pairwise comparison the README states, as first / second right on the rows where "
             "only one is (#68). Strict exact is the headline; Holm adjusts its p-values over the "
-            "claims listed. Lenient exact ignores optional arguments at their declared default "
-            "(BFCL has no lenient score). On test-clean, the last column leaves out the rows the "
-            "audit calls sound but whose gold writes out an optional argument at its default "
-            '("default made explicit").',
+            "claims listed. Lenient exact ignores optional arguments passed at their declared "
+            "default or null, on either side (BFCL has no lenient score). On test-clean, the last "
+            'column leaves out the rows the audit tags "default made explicit" (see below). The '
+            "lenient and last columns give unadjusted p-values.",
             "",
         ]
+        if data["claims_missing"]:
+            out += [f"Not yet measured: {'; '.join(data['claims_missing'])}.", ""]
         out += _table(
             ["First", "Second", "Eval", "Strict", "Holm p", "Lenient", "Strict, no default rows"],
             [
@@ -498,9 +505,14 @@ def render(data: Mapping[str, Any]) -> str:
             "",
             "## Default made explicit",
             "",
-            f"Strict exact on the {n} test-clean rows whose gold writes out an optional argument "
-            "at its default, and on the rest. Matching that convention is a habit of xLAM's "
-            "labels, not of the task, so a method can win or lose here on style alone.",
+            f'Strict exact on the {n} test-clean rows the audit tags "default made explicit", '
+            "and on the rest. On these rows gold and a baseline differed only by an optional "
+            "argument at its default, in either direction: gold wrote it and the model left it "
+            "out, or the reverse. Which way gold goes is xLAM's labelling habit, so a method "
+            "can gain or lose here by matching that habit, though some of these rows also hold "
+            "content errors. The audit only looked at rows a baseline got wrong, so the baselines "
+            "score low here by construction, and the rest still holds rows where gold passes a "
+            "default that no audited model disagreed with.",
             "",
         ]
         out += _table(
