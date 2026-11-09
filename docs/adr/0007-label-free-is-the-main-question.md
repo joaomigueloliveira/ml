@@ -1,6 +1,6 @@
 # 0007. Label-free distillation is the main question; SFT on labels is the reference
 
-Date: 2026-11-08 · Status: accepted · Amended 2026-11-08 by ADR 0008 (D starts from the raw student)
+Date: 2026-11-08 · Status: accepted · Amended 2026-11-08 by ADR 0008 (D starts from the raw student); 2026-11-09 (filtered B before C)
 
 ## Context
 
@@ -30,6 +30,8 @@ than the student. That is the question worth answering here.
 | With labels | A, filtered B, E | The reference: what labels buy |
 
 - **Order:** B → D → C → filtered B → E. The label-free methods run first; the with-labels runs follow.
+  Amended 2026-11-09: filtered B ran before C (#60), since it needed no new code and C's design
+  wasn't settled; the results table, not the run order, tells the story.
 - **D starts from the raw student**, like A, B and C (ADR 0008; first decided as "from B's
   selected checkpoint", which replaced #35's "the better of A and B"). Starting from A would bring
   labels into a label-free method. B then D is run as a pipeline, not as method D.
