@@ -71,7 +71,7 @@ def test_build_selects_per_method_compares_and_renders(
     # validation: raw 0.8B gets 2 right, the 2B 6, A 10, B's best checkpoint 7
     _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-0.8B", _rows(val, {0, 1}), {})
     _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-2B", _rows(val, set(range(6))), {})
-    a, b = METHODS
+    a, b, *_ = METHODS
     for method, scores in ((a, {500: 8, 1000: 10}), (b, {500: 7, 1000: 6})):
         for step, k in scores.items():
             _write_run(
@@ -107,3 +107,39 @@ def test_build_selects_per_method_compares_and_renders(
     md = render(data)
     assert "**B**, SFT on teacher outputs (step 500)" in md
     assert "Inside its interval" in md
+
+
+def test_matched_cost_scores_each_label_free_method_nearest_bs_gpu_hours(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    splits = tmp_path / "splits.json"
+    splits.write_text(json.dumps({"test-clean": []}))
+    val = range(10)
+    _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-0.8B", _rows(val, {0}), {})
+    _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-2B", _rows(val, set(range(5))), {})
+    by_key = {m.key: m for m in METHODS}
+    # B's best is step 1000 at 3.1 GPU-h. D's checkpoints sit at 2.0, 4.0 and 6.0 GPU-h, and D's
+    # best is the last; the matched-cost point is 4.0 (|4.0 - 3.1| < |2.0 - 3.1|), not the best.
+    runs = {
+        "B": {500: (1.6, 5), 1000: (3.1, 7)},
+        "D": {500: (2.0, 6), 1000: (4.0, 5), 1500: (6.0, 8)},
+    }
+    for key, checkpoints in runs.items():
+        for step, (hours, k) in checkpoints.items():
+            _write_run(
+                tmp_path / f"eval-validation-{by_key[key].train_run}-checkpoint-{step}",
+                _rows(val, set(range(k))),
+                {"adapter": {"gpu_hours": hours}},
+            )
+    monkeypatch.setattr(methods, "load_split", lambda split, path: [])
+
+    data = build(tmp_path, splits)
+
+    assert data["methods"]["D"]["selected"] == 1500
+    matched = data["matched_cost"]["D"]
+    assert (matched["step"], matched["gpu_hours"], matched["exact"]) == (1000, 4.0, 0.5)
+    assert (matched["vs_b"]["only_a_right"], matched["vs_b"]["only_b_right"]) == (2, 0)
+    assert "B" not in data["matched_cost"]
+    md = render(data)
+    assert "**D**, on-policy distillation (step 1500)" in md
+    assert "| D | 1000 | 4.00 |" in md
