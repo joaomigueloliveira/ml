@@ -4,7 +4,14 @@ from pathlib import Path
 import pytest
 
 from fc_distill.data import to_messages
-from fc_distill.opd import init_adapter, opd_record, probe_exact, probe_rows, rollout_stats
+from fc_distill.opd import (
+    checkpoint_action,
+    init_adapter,
+    opd_record,
+    probe_exact,
+    probe_rows,
+    rollout_stats,
+)
 from tests.factories import make_example
 
 
@@ -62,3 +69,25 @@ def test_init_adapter_names_where_the_run_starts_and_keeps_the_adapters_rank(
 def test_init_adapter_refuses_an_adapter_trained_on_another_base(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match=r"Qwen/Qwen3\.5-2B"):
         init_adapter(_checkpoint(tmp_path, base="Qwen/Qwen3.5-2B"), "Qwen/Qwen3.5-0.8B")
+
+
+@pytest.mark.parametrize(
+    ("step", "action"),
+    [
+        (50, (False, False)),
+        (100, (True, False)),
+        (500, (True, False)),
+        (700, (False, False)),
+        (1000, (True, True)),
+    ],
+)
+def test_checkpoint_action_saves_at_the_listed_steps_and_stops_at_the_last(
+    step: int, action: tuple[bool, bool]
+) -> None:
+    # B then D's first look (#58): the schedule spans the epoch, but the run saves early and often,
+    # and stops at 1000 with a checkpoint it can resume from.
+    assert checkpoint_action(step, save_at=(100, 200, 300, 400, 500, 1000), stop_at=1000) == action
+
+
+def test_checkpoint_action_without_a_list_leaves_saving_to_save_steps() -> None:
+    assert checkpoint_action(500, save_at=(), stop_at=None) == (False, False)
