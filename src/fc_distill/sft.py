@@ -4,8 +4,8 @@
 uv run --no-sync fc-sft --n-rows 1000                 # method A on a random 1,000 train rows
 uv run --no-sync fc-sft --n-rows 1000 --wandb         # also log to Weights & Biases
 uv run --no-sync fc-sft --targets teacher --teacher-run runs/eval-train-Qwen_Qwen3.5-2B
-                                                      # method B; add --filter lenient for the
-                                                      # variant that keeps answers matching gold
+                                                      # method B; --filter lenient (filtered B) or
+                                                      # --filter grounded (grounded B) for variants
 
 Method B trains on the train rows the teacher run answered, minus output that doesn't parse, and
 adds the teacher run's share of generation time to the run's GPU-hours.
@@ -22,7 +22,7 @@ import random
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import ExitStack
 from pathlib import Path
-from typing import Any, NamedTuple, TypedDict
+from typing import Any, Literal, NamedTuple, TypedDict, get_args
 
 from fc_distill.data import (
     CHAT_TEMPLATE_KWARGS,
@@ -34,6 +34,7 @@ from fc_distill.data import (
 )
 from fc_distill.evaluate import read_run
 from fc_distill.scoring import lenient_match, parse_calls
+from fc_distill.slices import grounded
 from fc_distill.tracking import (
     GPU_HOURS,
     PEAK_GPU_MEM_GB,
@@ -95,23 +96,37 @@ def load_teacher_run(run_dir: Path) -> TeacherRun:
     )
 
 
+Filter = Literal["none", "lenient", "grounded"]
+
+
+def keeps(rule: Filter, calls: list[Call], ex: Example) -> bool:
+    """Whether a variant of method B trains on the teacher's parsed calls for this row.
+
+    none (ADR 0006): every parsed answer, wrong ones included. lenient (filtered B, ADR 0005): only
+    answers that lenient-match gold, so it uses labels. grounded (#74), label-free: only answers
+    that pass the validity check (every called tool offered, required arguments present) and
+    whose every argument value is written in the query."""
+    if rule == "lenient":
+        return lenient_match(calls, ex["answers"], ex["tools"])
+    if rule == "grounded":
+        return grounded(calls, ex)
+    return True
+
+
 def teacher_records(
-    rows: Sequence[Example], outputs: Mapping[int, str], *, lenient_only: bool
+    rows: Sequence[Example], outputs: Mapping[int, str], *, rule: Filter
 ) -> tuple[list[SftRecord], dict[str, int]]:
     """Method B's training records: each row answered by the teacher's calls, rewritten in
-    gold's format so A and B targets differ in content only.
-
-    Unfiltered (ADR 0006), a wrong answer is kept and only output that doesn't parse is dropped.
-    `lenient_only` is the filtered variant: it also drops calls that don't lenient-match gold
-    (ADR 0005). The counts say how many rows each rule dropped."""
+    gold's format so A and B targets differ in content only. Output that doesn't parse is always
+    dropped; `rule` may drop more (see `keeps`). The counts say how many rows each step dropped."""
     records = []
-    counts = {"offered": len(rows), "kept": 0, "unparsed": 0, "not_lenient": 0}
+    counts = {"offered": len(rows), "kept": 0, "unparsed": 0, "filtered_out": 0}
     for ex in rows:
         calls = parse_calls(outputs[ex["id"]])
         if calls is None:
             counts["unparsed"] += 1
-        elif lenient_only and not lenient_match(calls, ex["answers"], ex["tools"]):
-            counts["not_lenient"] += 1
+        elif not keeps(rule, calls, ex):
+            counts["filtered_out"] += 1
         else:
             # Gold's shape and key order; extra keys the teacher wrote (`type`, `id`) go.
             gold_shaped: list[Call] = [
@@ -182,9 +197,10 @@ def parse_args() -> argparse.Namespace:
     )
     ap.add_argument(
         "--filter",
-        choices=("none", "lenient"),
+        choices=get_args(Filter),
         default="none",
-        help="lenient: keep only teacher answers that lenient-match gold (ADR 0005)",
+        help="lenient: keep only teacher answers that lenient-match gold (filtered B, ADR 0005); "
+        "grounded: keep only valid answers whose values are all in the query (label-free, #74)",
     )
     ap.add_argument("--n-rows", type=int, default=None, help="random train rows (default: all)")
     ap.add_argument("--seed", type=int, default=0, help="row sample, LoRA init and data order")
@@ -246,7 +262,6 @@ def main() -> None:
         rows, unanswered = answered, len(rows) - len(answered)
     if args.n_rows is not None:
         rows = random.Random(args.seed).sample(rows, args.n_rows)
-    lenient = args.filter == "lenient"
     data: dict[str, str | None]
     if teacher is None:
         method, data = "sft-gold", {"source": "gold"}
@@ -255,7 +270,7 @@ def main() -> None:
     else:
         # Filtered B is a variant of method B (GLOSSARY), not a method of its own.
         method = "sft-teacher"
-        records, counts = teacher_records(rows, teacher.outputs, lenient_only=lenient)
+        records, counts = teacher_records(rows, teacher.outputs, rule=args.filter)
         counts = {"unanswered": unanswered} | counts
         data = {
             "source": "teacher",
@@ -268,7 +283,7 @@ def main() -> None:
     # Everything a cost comparison varies is in the name, so two settings never share a run
     # directory (and so never resume each other's W&B run).
     variant = (
-        ("lenient-" if lenient else "")
+        ("" if args.filter == "none" else f"{args.filter}-")
         + f"r{args.lora_r}-b{args.batch_size}x{args.grad_accum}-n{len(records)}"
         + ("" if args.gradient_checkpointing else "-nogc")
         + ("-gl" if args.group_by_length else "")

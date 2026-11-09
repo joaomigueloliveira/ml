@@ -12,7 +12,7 @@ spec, not necessarily for the real API.
 import json
 import re
 from collections import Counter
-from collections.abc import Hashable, Sequence
+from collections.abc import Hashable, Mapping, Sequence
 from typing import Any, TypedDict, cast
 
 from fc_distill.data import Call
@@ -172,3 +172,19 @@ METRICS = ("parse_ok", "exact", "lenient_exact", "names", "arg_f1")
 def summarize(scores: Sequence[Score]) -> dict[str, Any]:
     """Mean of every metric over a set of scored rows, each with its 95% interval."""
     return metric_block(scores, METRICS)
+
+
+def validity(prediction: str, tools: Sequence[Mapping[str, Any]]) -> str:
+    """A label-free check of one teacher output (ADR 0007): "unparsed", "unknown function" (a call
+    to a tool that wasn't offered), "missing required" (a required argument left out) or "valid"."""
+    calls = parse_calls(prediction)
+    if calls is None:
+        return "unparsed"
+    specs = {t["name"]: t.get("parameters") or {} for t in tools}
+    for call in calls:
+        if call["name"] not in specs:
+            return "unknown function"
+        required = {a for a, spec in specs[call["name"]].items() if not is_optional(spec)}
+        if not required <= set(call["arguments"]):
+            return "missing required"
+    return "valid"

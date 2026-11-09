@@ -6,18 +6,31 @@
   "unparsed": 2137,
   "unknown function": 22,
   "gold_not_valid": 1798,
+  "not_in_query": 16316,
   "variants": {
    "unfiltered": {
     "kept": 52424,
-    "exact": 0.6759
+    "exact": 0.6759,
+    "lenient": 0.7191,
+    "not_in_query_kept": 15547
    },
    "valid": {
     "kept": 50919,
-    "exact": 0.6896
+    "exact": 0.6896,
+    "lenient": 0.7339,
+    "not_in_query_kept": 14766
+   },
+   "grounded": {
+    "kept": 33918,
+    "exact": 0.8467,
+    "lenient": 0.8682,
+    "not_in_query_kept": 1360
    },
    "lenient": {
     "kept": 37696,
-    "exact": 0.94
+    "exact": 0.94,
+    "lenient": 1.0,
+    "not_in_query_kept": 7186
    }
   },
   "gpu_hours": 1.431

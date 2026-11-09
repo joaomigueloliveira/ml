@@ -26,7 +26,8 @@ from typing import Any, NamedTuple
 
 from fc_distill.data import DEFAULT_SPLITS_PATH, Example, load_split
 from fc_distill.evaluate import read_run
-from fc_distill.scoring import is_optional, parse_calls
+from fc_distill.scoring import parse_calls, validity
+from fc_distill.slices import argument_source, grounded
 from fc_distill.stats import holm, mcnemar, metric_block
 
 
@@ -107,35 +108,29 @@ def gains(score: float, raw: float, teacher: float, a: float) -> dict[str, float
     }
 
 
-def validity(prediction: str, tools: Sequence[Mapping[str, Any]]) -> str:
-    """A label-free check of one teacher output (ADR 0007): "unparsed", "unknown function" (a call
-    to a tool that wasn't offered), "missing required" (a required argument left out) or "valid"."""
-    calls = parse_calls(prediction)
-    if calls is None:
-        return "unparsed"
-    specs = {t["name"]: t.get("parameters") or {} for t in tools}
-    for call in calls:
-        if call["name"] not in specs:
-            return "unknown function"
-        required = {a for a, spec in specs[call["name"]].items() if not is_optional(spec)}
-        if not required <= set(call["arguments"]):
-            return "missing required"
-    return "valid"
-
-
 def teacher_counts(
     records: Sequence[Mapping[str, Any]], examples: Mapping[int, Example]
 ) -> dict[str, Any]:
-    """How many teacher outputs each B variant keeps, and how many of those match gold."""
+    """How many teacher outputs each B variant keeps, how many of those match gold, and how much
+    of the train rows whose gold values aren't all in the query each keeps."""
     out: dict[str, Any] = {"rows": len(records)}
-    kept: dict[str, list[Mapping[str, Any]]] = {"unfiltered": [], "valid": [], "lenient": []}
+    kept: dict[str, list[Mapping[str, Any]]] = {
+        "unfiltered": [],
+        "valid": [],
+        "grounded": [],
+        "lenient": [],
+    }
     for r in records:
-        verdict = validity(r["prediction"], examples[r["id"]]["tools"])
+        ex = examples[r["id"]]
+        verdict = validity(r["prediction"], ex["tools"])
         out[verdict] = out.get(verdict, 0) + 1
         if verdict != "unparsed":
             kept["unfiltered"].append(r)
         if verdict == "valid":
             kept["valid"].append(r)
+            calls = parse_calls(r["prediction"])
+            if calls is not None and grounded(calls, ex):
+                kept["grounded"].append(r)
         if r["lenient_exact"]:
             kept["lenient"].append(r)
     # The same check on gold: how often it rejects a correct answer, since xLAM doesn't always mark
@@ -144,8 +139,21 @@ def teacher_counts(
         validity(json.dumps(examples[r["id"]]["answers"]), examples[r["id"]]["tools"]) != "valid"
         for r in records
     )
+    not_in_query = {
+        r["id"] for r in records if argument_source(examples[r["id"]]) == "not_in_query"
+    }
+    out["not_in_query"] = len(not_in_query)
+
+    def share(rows: Sequence[Mapping[str, Any]], key: str) -> float:
+        return round(float(sum(r[key] for r in rows)) / len(rows), 4)
+
     out["variants"] = {
-        name: {"kept": len(rows), "exact": round(sum(r["exact"] for r in rows) / len(rows), 4)}
+        name: {
+            "kept": len(rows),
+            "exact": share(rows, "exact"),
+            "lenient": share(rows, "lenient_exact"),
+            "not_in_query_kept": sum(r["id"] in not_in_query for r in rows),
+        }
         for name, rows in kept.items()
         if rows
     }
@@ -619,29 +627,43 @@ def render(data: Mapping[str, Any]) -> str:
             "## Teacher outputs (method B)",
             "",
             f"The 2B answered all {teacher['rows']:,} train rows in {teacher['gpu_hours']:.2f} "
-            "GPU-hours (#44). Rows each variant would train on, and how many of them match gold:",
+            "GPU-hours (#44). Rows each variant would train on, how many of them match gold, and "
+            f"how many of the {teacher['not_in_query']:,} train rows whose gold values aren't all "
+            "written in the query each keeps:",
             "",
             *_table(
-                ["Variant", "Uses labels", "Rows kept", "Exact vs gold"],
+                [
+                    "Variant",
+                    "Uses labels",
+                    "Rows kept",
+                    "Exact vs gold",
+                    "Lenient vs gold",
+                    "Values not in query, kept",
+                ],
                 [
                     [
-                        "unfiltered (parses), method B",
-                        "no",
-                        f"{variants['unfiltered']['kept']:,}",
-                        f"{100 * variants['unfiltered']['exact']:.1f}",
-                    ],
-                    [
-                        "validity check (tools offered, non-optional arguments present)",
-                        "no",
-                        f"{variants['valid']['kept']:,}",
-                        f"{100 * variants['valid']['exact']:.1f}",
-                    ],
-                    [
-                        "lenient match with gold, filtered B",
-                        "yes",
-                        f"{variants['lenient']['kept']:,}",
-                        f"{100 * variants['lenient']['exact']:.1f}",
-                    ],
+                        label,
+                        labels,
+                        f"{variants[key]['kept']:,}",
+                        f"{100 * variants[key]['exact']:.1f}",
+                        f"{100 * variants[key]['lenient']:.1f}",
+                        f"{variants[key]['not_in_query_kept']:,}",
+                    ]
+                    for key, label, labels in (
+                        ("unfiltered", "unfiltered (parses), method B", "no"),
+                        (
+                            "valid",
+                            "validity check (tools offered, required arguments present)",
+                            "no",
+                        ),
+                        (
+                            "grounded",
+                            "validity check and every value in the query, grounded B",
+                            "no",
+                        ),
+                        ("lenient", "lenient match with gold, filtered B", "yes"),
+                    )
+                    if key in variants
                 ],
             ),
             "",
@@ -653,6 +675,8 @@ def render(data: Mapping[str, Any]) -> str:
             "the kept rows' agreement with gold from "
             f"{100 * variants['unfiltered']['exact']:.1f}% "
             f"to {100 * variants['valid']['exact']:.1f}%, "
-            "so it is reported, not trained (ADR 0007).",
+            "so it is reported, not trained (ADR 0007). Grounded B adds that every argument value "
+            "is written in the query: still label-free, but by construction it drops most rows "
+            "whose answer needs a value the query doesn't spell out (#74).",
         ]
     return "\n".join(out) + "\n"
