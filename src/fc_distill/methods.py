@@ -6,8 +6,9 @@ For each method: every checkpoint's validation score against its GPU-hours, the 
 (ADR 0006: best strict exact, ties to the earlier), and the selected checkpoint's official test,
 test-clean and BFCL scores once they exist. Test-clean is scored from the test run restricted to
 its ids, as in the baselines report. Label-free methods are the main question; methods with labels
-are the reference (ADR 0007). Each label-free method after B is also scored at its checkpoint
-nearest B's GPU-hours, the matched-cost comparison (ADR 0008).
+are the reference (ADR 0007). Each label-free method after B is also reported at B's budget: its
+best checkpoint on validation within B's GPU-hours, with that checkpoint's official scores once
+they exist (ADR 0008).
 """
 
 import json
@@ -192,29 +193,42 @@ def build(runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH) -> dict[str, Any]
             )
         return None if block is None else float(block["exact"])
 
-    matched_cost: dict[str, Any] = {}
+    at_b_budget: dict[str, Any] = {}
     if "B" in methods:
-        ref = next(c for c in methods["B"]["checkpoints"] if c["step"] == methods["B"]["selected"])
-        b_exact = exact["B", "validation"]
+        b = methods["B"]
+        budget = next(c for c in b["checkpoints"] if c["step"] == b["selected"])["gpu_hours"]
         for m in METHODS:
             if m.labels or m.key == "B" or m.key not in methods:
                 continue
-            near = min(
-                methods[m.key]["checkpoints"],
-                key=lambda c: (abs(c["gpu_hours"] - ref["gpu_hours"]), c["step"]),
-            )
-            rows = exact[f"{m.key}@{near['step']}", "validation"]
-            order = sorted(b_exact, key=str)
-            vs_b = mcnemar([b_exact[i] for i in order], [rows[i] for i in order])
-            matched_cost[m.key] = near | {"vs_b": vs_b}
+            within = [c for c in methods[m.key]["checkpoints"] if c["gpu_hours"] <= budget]
+            if not within:
+                continue
+            step, _ = select(within)
+            point = next(c for c in within if c["step"] == step)
+            who = f"{m.key}@{step}"
+            official = {}
+            for split in OFFICIAL:
+                records = _records(
+                    runs, _eval_dir(split, f"{m.train_run}-checkpoint-{step}"), split, clean
+                )
+                if records is not None:
+                    official[split] = keep(who, split, records)
+            vs_b = {}
+            for split in ("validation", *official):
+                b_rows, own = exact.get(("B", split)), exact[who, split]
+                if b_rows is None:
+                    continue
+                order = sorted(b_rows, key=str)
+                vs_b[split] = mcnemar([b_rows[i] for i in order], [own[i] for i in order])
+            at_b_budget[m.key] = point | {"official": official, "vs_b": vs_b}
 
     headline = {}
     for key in methods:
         for split in ("validation", "test-clean"):
             values = [score(w, split) for w in (key, "raw 0.8B", "raw 2B", "A")]
             if all(v is not None for v in values):
-                own, raw, t2b, a = (float(v) for v in values if v is not None)
-                headline[f"{key}/{split}"] = gains(own, raw, t2b, a)
+                score_m, raw, t2b, a = (float(v) for v in values if v is not None)
+                headline[f"{key}/{split}"] = gains(score_m, raw, t2b, a)
 
     ids = {"raw 0.8B": STUDENT, "raw 2B": TEACHER}
     comparisons = []
@@ -240,7 +254,7 @@ def build(runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH) -> dict[str, Any]
         "baselines": {"validation": validation, "official": official_baselines},
         "methods": methods,
         "headline": headline,
-        "matched_cost": matched_cost,
+        "at_b_budget": at_b_budget,
         "mcnemar": comparisons,
     }
 
@@ -325,31 +339,39 @@ def render(data: Mapping[str, Any]) -> str:
             for k, v in data["headline"].items()
         ],
     )
-    if data["matched_cost"]:
-        ref = methods["B"]
-        ref_h = next(c for c in ref["checkpoints"] if c["step"] == ref["selected"])["gpu_hours"]
+    if data["at_b_budget"]:
+        b = methods["B"]
+        b_h = next(c for c in b["checkpoints"] if c["step"] == b["selected"])["gpu_hours"]
         out += [
             "",
-            "## Matched cost",
+            "## At B's budget",
             "",
-            f"Each label-free method at its checkpoint nearest B's {ref_h:.2f} GPU-hours, on "
-            "validation, against B's selected checkpoint (ADR 0008). Only B right / only the "
-            "method right are the McNemar counts.",
+            f"Each label-free method at its best checkpoint on validation within B's {b_h:.2f} "
+            "GPU-hours (ADR 0008), with its official scores, against B's selected checkpoint. "
+            "Only B / only it right are the McNemar counts on each eval.",
             "",
         ]
         out += _table(
-            ["Method", "Step", "GPU-h", "Validation", "Only B right", "Only it right", "p"],
+            ["Method", "Step", "GPU-h", "Validation", *OFFICIAL],
+            [
+                [key, str(c["step"]), f"{c['gpu_hours']:.2f}", _pct(c)]
+                + [_pct(c["official"].get(s)) for s in OFFICIAL]
+                for key, c in data["at_b_budget"].items()
+            ],
+        )
+        out += [""]
+        out += _table(
+            ["Method", "Eval", "Only B right", "Only it right", "p"],
             [
                 [
                     key,
-                    str(c["step"]),
-                    f"{c['gpu_hours']:.2f}",
-                    _pct(c),
-                    str(c["vs_b"]["only_a_right"]),
-                    str(c["vs_b"]["only_b_right"]),
-                    "< 0.0001" if c["vs_b"]["p"] < 1e-4 else f"{c['vs_b']['p']:.4f}",
+                    split,
+                    str(v["only_a_right"]),
+                    str(v["only_b_right"]),
+                    "< 0.0001" if v["p"] < 1e-4 else f"{v['p']:.4f}",
                 ]
-                for key, c in data["matched_cost"].items()
+                for key, c in data["at_b_budget"].items()
+                for split, v in c["vs_b"].items()
             ],
         )
     out += ["", "## Validation curves", ""]
