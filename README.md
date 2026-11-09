@@ -28,7 +28,7 @@ Scoring is deterministic: no LLM judge.
 
 | Metric | Meaning |
 |---|---|
-| `parse_ok` | output is a valid JSON list of `{name, arguments}` calls, with nothing around it |
+| `parse_ok` | output parses as JSON calls `{name, arguments}`: a list, or a single call object; a missing `arguments` counts as `{}`. If the output has a code fence, only the fence's contents are read, so text around a fence is ignored; without one, any text around the JSON fails. `<think>` blocks are removed first |
 | `exact` | same calls as the gold answer (order-insensitive; `5 == 5.0`, `true != 1`) |
 | `lenient_exact` | `exact`, but ignoring optional arguments passed at their declared default or `null`, on either side. Many xLAM defaults look like example values copied from API docs, so such calls are the same by the tool spec, not necessarily for the real API. `exact` stays the headline |
 | `names` | the right functions were called |
@@ -52,7 +52,9 @@ rows), with specs converted to xLAM's format: [`docs/bfcl.md`](docs/bfcl.md).
 Strict exact match with 95% intervals. Baselines (#10): [`results/baselines.md`](results/baselines.md).
 Methods, with every checkpoint, McNemar tests and the teacher-output counts:
 [`results/methods.md`](results/methods.md). Checkpoints are chosen on validation; test, test-clean
-and BFCL are run once, for the chosen one.
+and BFCL are run once, for the chosen one. Test-clean scores are read from the test run, restricted
+to its rows; a separate test-clean run of the same checkpoint can differ by up to 3 rows (batch
+nondeterminism in vLLM).
 
 | Model | Training uses labels | GPU-h | Test | Test-clean | BFCL (unseen tools) |
 |---|---|---:|---:|---:|---:|

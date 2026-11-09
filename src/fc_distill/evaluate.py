@@ -22,6 +22,7 @@ commit in its provenance identifies the code that produced it (--allow-dirty ove
 import argparse
 import json
 import os
+import random
 import time
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
@@ -53,23 +54,33 @@ from fc_distill.tracking import GPU_HOURS, data_provenance, git_state, hub_revis
 # "train" is for teacher outputs (method B, ADR 0006): the run's predictions.jsonl is what fc-sft
 # --targets teacher trains on. Its scores against gold are a by-product, never a result.
 SPLITS = (*get_args(EvalSplit), "bfcl", "train")
-# Rows generated again without the adapter, to check it changed something.
+# Rows generated again without the adapter, to check it changed something: a fixed seeded sample
+# from the whole split. The first rows were used until #71, but BFCL's are all simple ones the raw
+# model already gets right, which a trained adapter rarely changes.
 ADAPTER_CHECK_ROWS = 32
+ADAPTER_CHECK_SEED = 0
 # A trained checkpoint changes about 70% of them; batch nondeterminism alone changes a few, so
 # "not all identical" would pass an adapter that never loaded.
 ADAPTER_MIN_CHANGED = 0.25
 
 
+def check_rows(n: int, k: int = ADAPTER_CHECK_ROWS) -> list[int]:
+    """The indices of the rows the adapter-load check generates again: k of n, seeded, sorted."""
+    if n <= k:
+        return list(range(n))
+    return sorted(random.Random(ADAPTER_CHECK_SEED).sample(range(n), k))
+
+
 def adapter_check(
     base_texts: Sequence[str], texts: Sequence[str], min_changed: float
 ) -> dict[str, Any]:
-    """How many of the first rows the adapter changed against the base model; refuses the run if
+    """How many of the check rows the adapter changed against the base model; refuses the run if
     fewer than `min_changed` of them, the sign of an adapter that never loaded. The counts go into
     the run's summary."""
     changed = sum(b != t for b, t in zip(base_texts, texts, strict=False))
     if changed < min_changed * len(base_texts):
         raise RuntimeError(
-            f"changed {changed} of the first {len(base_texts)} outputs: not loaded? If the adapter "
+            f"changed {changed} of {len(base_texts)} check rows: not loaded? If the adapter "
             "is loaded (check its other splits), pass a lower --adapter-min-changed"
         )
     return {"rows": len(base_texts), "changed": changed, "min_changed": min_changed}
@@ -189,11 +200,15 @@ def main() -> None:
     elapsed = time.perf_counter() - start
     texts = [o.outputs[0].text for o in outputs]
     if lora is not None:
-        check = prompts[:ADAPTER_CHECK_ROWS]
-        base = llm.chat(check, params, chat_template_kwargs=CHAT_TEMPLATE_KWARGS)
+        picked = check_rows(len(prompts))
+        base = llm.chat(
+            [prompts[i] for i in picked], params, chat_template_kwargs=CHAT_TEMPLATE_KWARGS
+        )
         try:
             checked = adapter_check(
-                [o.outputs[0].text for o in base], texts[: len(check)], args.adapter_min_changed
+                [o.outputs[0].text for o in base],
+                [texts[i] for i in picked],
+                args.adapter_min_changed,
             )
         except RuntimeError as err:
             raise RuntimeError(f"{args.adapter}: {err}") from None

@@ -11,6 +11,7 @@ from fc_distill.opd import (
     probe_exact,
     probe_rows,
     rollout_stats,
+    rows_trained,
 )
 from tests.factories import make_example
 
@@ -91,3 +92,9 @@ def test_checkpoint_action_saves_at_the_listed_steps_and_stops_at_the_last(
 
 def test_checkpoint_action_without_a_list_leaves_saving_to_save_steps() -> None:
     assert checkpoint_action(500, save_at=(), stop_at=None) == (False, False)
+
+
+def test_rows_trained_stops_counting_where_the_run_stopped() -> None:
+    # B then D (#58) stopped at step 1000 of a 54,561-row epoch: 16,000 rows trained, not 54,561.
+    assert rows_trained(steps=1000, rows_per_step=16, epoch_rows=54561) == 16000
+    assert rows_trained(steps=3411, rows_per_step=16, epoch_rows=54561) == 54561

@@ -119,6 +119,11 @@ def init_adapter(checkpoint: Path, model: str) -> InitAdapter:
     return {"tag": f"from-{run}-{step}", "r": config["r"], "alpha": config["lora_alpha"]}
 
 
+def rows_trained(steps: int, rows_per_step: int, epoch_rows: int) -> int:
+    """Rows the run trained on: all of the epoch, or fewer if it stopped early (--stop-at)."""
+    return min(epoch_rows, steps * rows_per_step)
+
+
 def checkpoint_action(step: int, save_at: Sequence[int], stop_at: int | None) -> tuple[bool, bool]:
     """(save, stop) after an optimizer step, for a run that saves at listed steps (--save-at) and
     stops early (--stop-at) while its schedule still spans the whole epoch, so it can be resumed
@@ -454,7 +459,9 @@ def main() -> None:
     trainer.save_model(str(out / "adapter"))
 
     cost = cost_summary(
-        rows=len(records),
+        rows=rows_trained(
+            trainer.state.global_step, args.batch_size * args.grad_accum, len(records)
+        ),
         tokens=trainer.state.num_input_tokens_seen,
         seconds=clock.metrics()[STUDENT_GPU_HOURS] * 3600,
         peak_bytes=device_peak[0],
@@ -467,6 +474,8 @@ def main() -> None:
         "grad_accum": args.grad_accum,
         "final_train_loss": final.get("train_loss"),
         "train_runtime_s": final.get("train_runtime"),
+        "epoch_rows": len(records),
+        "steps": trainer.state.global_step,
         "cost": cost,
         "total_gpu_hours": clock.metrics()[GPU_HOURS],
     }
