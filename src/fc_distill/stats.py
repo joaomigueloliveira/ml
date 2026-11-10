@@ -65,3 +65,15 @@ def mcnemar(a: Sequence[bool], b: Sequence[bool]) -> dict[str, Any]:
         tail = sum(Fraction(math.comb(n, k), 2**n) for k in range(min(only_a, only_b) + 1))
         p = float(min(Fraction(1), 2 * tail))
     return {"n": len(a), "only_a_right": only_a, "only_b_right": only_b, "p": p}
+
+
+def holm(ps: Sequence[float]) -> list[float]:
+    """Holm-Bonferroni adjusted p-values, in the input order: the k-th smallest of m is scaled by
+    m - k + 1, made non-decreasing in that order, and capped at 1."""
+    order = sorted(range(len(ps)), key=lambda k: ps[k])
+    out = [0.0] * len(ps)
+    running = 0.0
+    for rank, k in enumerate(order):
+        running = max(running, min(1.0, (len(ps) - rank) * ps[k]))
+        out[k] = running
+    return out
