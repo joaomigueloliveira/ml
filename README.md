@@ -12,11 +12,12 @@ labels buy (ADR 0007).
 | **B** | SFT on teacher outputs (sequence-level distillation) | no |
 | **D** | On-policy distillation from the raw student: it writes, the teacher scores every token ([Thinking Machines, 2025](https://thinkingmachines.ai/blog/on-policy-distillation/); [GKD](https://arxiv.org/abs/2306.13649)) | no |
 | **C** | Logit distillation on the teacher's top-k token probabilities | no |
+| **grounded B** | B on the teacher outputs whose values all appear in the query: a label-free filter | no |
 | **filtered B** | B on the teacher outputs that match gold: what the teacher's mistakes cost | yes, as a filter |
 | **E** | GRPO, reward checked against gold: does RL add anything on top of SFT? | yes, in the reward |
 
-A, B, D and filtered B are done, and B then D (a pipeline) was tried and dropped; C and E are
-next. Every result is
+A, B, D, grounded B and filtered B are done, and B then D (a pipeline) was tried and dropped; C and
+E are next. Every result is
 reported next to the untrained baselines and A, with two numbers on `test-clean`: the gap recovered
 from the raw 0.8B towards the 2B, and the share of A's gain reached without labels.
 
@@ -65,6 +66,7 @@ nondeterminism in vLLM).
 | **D**: 0.8B, on-policy distillation | no | 13.54 | 70.5 [68.5, 72.5] | 83.3 [81.4, 85.0] | 82.5 [80.0, 84.7] |
 | D at B's budget (step 500) | no | 2.22 | 69.0 [67.0, 71.0] | 81.0 [79.1, 82.9] | 78.7 [76.1, 81.1] |
 | B then D (pipeline, step 400) | no | 4.77 | 69.8 [67.8, 71.8] | 81.7 [79.7, 83.5] | 78.9 [76.3, 81.3] |
+| **Grounded B**: 0.8B, SFT on teacher outputs whose values are all in the query | no | 3.02 | 71.0 [69.0, 73.0] | 82.9 [81.0, 84.7] | 79.8 [77.2, 82.2] |
 | **Filtered B**: 0.8B, SFT on teacher outputs that match gold | yes, as a filter | 2.50 | 74.8 [72.8, 76.6] | 85.7 [83.9, 87.3] | 80.8 [78.2, 83.1] |
 | **A**: 0.8B, SFT on gold labels | yes | 3.83 | 84.8 [83.1, 86.3] | 93.2 [91.9, 94.3] | 84.5 [82.1, 86.6] |
 
@@ -97,13 +99,13 @@ separate them, not that they are equal: a paired difference carries about ±2 po
   defaults (on the 123 test-clean rows that turn on it, B gets 52 and D 40). D also stays closer to
   the teacher: it repeats 43% of the 2B's wrong test-clean answers, B 35%.
 - **On BFCL, D reaches 82.5, not significantly different from the 2B (p = 0.93).** It is above B's
-  selected checkpoint (62 vs 28, Holm p = 0.006), from argument values and function choice, not
+  selected checkpoint (62 vs 28, Holm p = 0.007), from argument values and function choice, not
   format. That holds for B's selected checkpoint only: B's BFCL keeps rising after it, to 81.1 at the
   end of its epoch (5.1 GPU-hours), which D doesn't significantly beat (p = 0.12; #70). D took
   13.5 GPU-hours, and D's own BFCL rises with training (78.7 at step 500, p = 0.0002 against step
   3000), so with one seed the data can't tell on-policy training from more training.
 - **Per GPU-hour, D shows no advantage.** At B's budget (step 500, 2.2 GPU-hours) D trails on
-  test-clean, 81.0 vs 83.4 (p = 0.006), but not after Holm (0.06), and the gap comes from the default
+  test-clean, 81.0 vs 83.4 (p = 0.006), but not after Holm (0.07), and the gap comes from the default
   habit (p = 0.14 without those 123 rows); on BFCL it is not significantly different. Validation, on
   1,000 rows, called it a tie. Along the runs, B's BFCL at the end of its epoch (81.1, 5.1 GPU-hours)
   is above D's at 4.5 and 6.8 GPU-hours (77.8 and 78.2; #70, explanation only). B's GPU-hours are charged for the teacher answering all
@@ -111,7 +113,7 @@ separate them, not that they are equal: a paired difference carries about ±2 po
 - **D's loss on top of B doesn't help.** B then D continues B's selected checkpoint with D's loss
   (lr 5e-5, a fourth of D's, stopped at step 1000 of the epoch, #58). No checkpoint beat B on
   validation. Its pick, step 400 (1.65 GPU-hours on top of B's), is behind B on test-clean under
-  strict exact (81.7 vs 83.4, 42 vs 70, p = 0.01), but not after Holm (0.08), and level under lenient (43 vs 47,
+  strict exact (81.7 vs 83.4, 42 vs 70, p = 0.01), but not after Holm (0.10), and level under lenient (43 vs 47,
   p = 0.75): it moves B towards the teacher's conventions. Of the 70 test-clean rows it turns wrong,
   29 differ only by a default and 31 now give the 2B's answer. On BFCL it is not significantly
   different from B (78.9 vs 79.1, p = 0.91) and below D (Holm p = 0.002). One learning rate, one
@@ -125,7 +127,7 @@ separate them, not that they are equal: a paired difference carries about ±2 po
   default (51 arguments, about 23 rows), an xLAM gold habit.
 - **Training only on the teacher outputs that match gold gains about 2 points, not robustly.**
   Filtered B keeps the 37,696 teacher outputs that lenient-match gold (#60). It leads B on test-clean
-  (85.7 vs 83.4, p = 0.007; 140% of the gap, 80% of A's gain), but not after Holm (p = 0.06), and its
+  (85.7 vs 83.4, p = 0.007; 140% of the gap, 80% of A's gain), but not after Holm (p = 0.07), and its
   lead shrinks from validation (+5.8) to test (+3.6) to test-clean (+2.3): part of it is gold's
   quirks, which the filter lets through (34% on ambiguous rows, B 22%). It uses fewer rows and fewer
   GPU-hours (2.50 vs 3.12), and is not significantly different from B on BFCL (80.8 vs 79.1,
@@ -135,11 +137,21 @@ separate them, not that they are equal: a paired difference carries about ±2 po
   most of the train rows whose values aren't written in the query. Filtered B also differs from B in
   its schedule length (2,356 steps vs 3,277), and each is one seed.
 
+- **A label-free filter on the teacher's outputs doesn't do what filtering against gold does.**
+  Grounded B keeps only the 33,918 teacher outputs that call offered tools with their required
+  arguments and write every value as it appears in the query (#74): they agree with gold 86.8% of the
+  time under lenient exact, against 71.9% for all of B's data. Its selected step, 1500, is not
+  significantly different from B on test-clean (82.9 vs 83.4, 89 vs 97, p = 0.61) or BFCL (79.8 vs
+  79.1, p = 0.58), and filtered B beats it on test-clean (125 vs 80, Holm p = 0.03). The tie is two
+  effects cancelling. On the test rows whose values are all in the query it gains as much as filtered
+  B (85.9, against B's 83.2 and filtered B's 86.0). On the 605 rows that need a value the query
+  doesn't spell out it falls behind (36.7, against 43.5 and 48.9), since the rule dropped 91% of
+  such train rows (#75).
+
 B's and filtered B's GPU-hours include the 1.43 h the teacher took to answer the train split; D's
 include its own sampling and the teacher's grading, inside every step; B then D's include B's.
 Checkpoints are each run's best on validation (ADR 0006); the pick within a run is noisy, so a claim
-that rests on it names the checkpoint (ADR 0009). Next: grounded B, label-free (#75), and logit
-distillation, C (#59).
+that rests on it names the checkpoint (ADR 0009). Next: logit distillation, C (#59).
 
 Training cost (#36): one epoch of LoRA SFT over the full train split takes about 3.9 GPU-hours on the
 RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the
