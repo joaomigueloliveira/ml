@@ -104,6 +104,16 @@ A gold answer that is one of several reasonable calls for the query and specs.
 **Wrong label**:
 A gold answer that contradicts the query or specs, or contains a made-up value.
 
+**Default made explicit**:
+An audited row whose gold and a baseline's answer differ only by an optional argument at its declared
+default: one side writes it, the other leaves it out. The label is sound; which way gold goes is
+xLAM's habit.
+
+**Gold quirk**:
+An arbitrary choice in gold that a sound alternative could replace: an ambiguous label's pick, or the
+habit of writing or omitting a default. A model can score by learning it without calling tools any
+better.
+
 **Ceiling**:
 The share of test rows with a sound label: the best strict exact score an always-right model could
 reach on test.
@@ -118,8 +128,20 @@ _Avoid_: accuracy (alone)
 Strict exact, except that explicit defaults on either side are ignored.
 
 **Quirk-learning**:
-A model gaining on raw test by reproducing xLAM's unsound labels. Measured as strict exact on the
+A model gaining on raw test by reproducing gold quirks. Measured as strict exact on the
 ambiguous test rows, compared with the teacher's.
+
+**Missing call**:
+An answer that stops before a call the gold answer makes, e.g. the first of two calls and nothing
+after it.
+
+**Agreement with the teacher**:
+The share of rows where a model makes exactly the teacher's calls, both parsed. It rises with
+accuracy alone, since two right answers agree.
+
+**Copying the teacher's errors**:
+On rows where the teacher's parsed answer is wrong, how often a model makes the same calls. Separates
+imitating the teacher from getting better.
 
 **Gap recovered**:
 How much of the distance from the raw student to the teacher a trained student closes, in strict
