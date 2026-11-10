@@ -68,46 +68,77 @@ nondeterminism in vLLM).
 | **Filtered B**: 0.8B, SFT on teacher outputs that match gold | yes, as a filter | 2.50 | 74.8 [72.8, 76.6] | 85.7 [83.9, 87.3] | 80.8 [78.2, 83.1] |
 | **A**: 0.8B, SFT on gold labels | yes | 3.83 | 84.8 [83.1, 86.3] | 93.2 [91.9, 94.3] | 84.5 [82.1, 86.6] |
 
-- **Without labels, B beats its own teacher on xLAM.** On test-clean it recovers 130% of the
-  22.0-point gap from the 0.8B to the 2B (p < 0.0001 against both), and reaches 74% of what
-  training on gold labels gains. #2's success criterion, at least 50% of the gap, is met. Part of
-  it is format: 43 of the 159 rows B gets right and the 2B misses are 2B outputs that break off
-  mid-JSON, which B never trained on (unparsed outputs are dropped). On the 1,563 rows where both
-  outputs parse, B still leads, 83.9 to 79.8. It isn't memorisation: only 9 test-clean queries
-  appear in train, and B's lead is larger on tool sets train never saw.
+Each claim below compares two models on the same rows with a paired McNemar test; "Holm" is that
+p-value adjusted over every claim listed in [`results/methods.md`](results/methods.md#readme-claims),
+which also gives each one under lenient exact. "Not significantly different" means the test can't
+separate them, not that they are equal: intervals here are about ±2.3 points.
+
+- **Without labels, B beats its own teacher on xLAM test-clean.** It recovers 130% of the 22.0-point
+  gap from the 0.8B to the 2B (159 rows only B gets right against 52, Holm p < 0.0001) and reaches
+  74% of what training on gold labels gains. #2's success criterion, at least 50% of the gap, is
+  met. On validation the lead is smaller (70.8 vs 68.0, p = 0.006), and on the validation rows
+  where both outputs parse it is not significant (71.8 vs 70.2, p = 0.12). It isn't output format:
+  43 of B's 159 rows are 2B outputs that don't parse, but they are missing calls, not broken JSON.
+  Closing the brackets makes 45 of the 2B's 58 unparsed test-clean outputs parse, and only one of
+  them becomes right; most are a first call cut short where a second was due. Dropping the teacher's
+  unparsed outputs from B's training data acted as a label-free filter: of the 2,137 dropped, the
+  1,210 that parse after the same repair match gold only 34 times. It isn't memorisation either: no
+  test-clean query appears in train (9 do if punctuation is ignored; 237 share a template with other
+  values), and B's lead is larger on the 109 rows whose tool set train never saw (83.5 vs 68.8).
 - **On tools it never trained on, it doesn't.** B gains 14.6 points on BFCL over the raw 0.8B but
-  stays below the 2B (p = 0.003). Its format holds (parse_ok 98.8 vs 98.9); it loses on argument
-  values, in every BFCL category. A ties the 2B there (p = 0.20).
-- **On-policy distillation (D) ties B on xLAM, and matches the teacher on unseen tools.** On
-  test-clean D and B are the same (83.3 vs 83.4; 60 and 62 rows only one of them gets right,
-  p = 0.93): 129% of the gap to the 2B, 74% of A's gain. On BFCL D reaches 82.5, level with the 2B
-  (p = 0.93) and above B (p = 0.0004), from argument values and function choice, not format. It
-  took 4x B's GPU-hours: at B's budget D is level with B on BFCL too, and with one seed and two BFCL
-  points the data can't tell on-policy training from more training.
-- **Per GPU-hour, B is cheaper.** D's selected checkpoint took 13.5 GPU-hours to tie B's 3.1. At
-  B's budget (step 500, 2.2 GPU-hours) D is behind on test-clean, 81.0 vs 83.4 (p = 0.006), and
-  level on BFCL. Validation, on 1,000 rows, called that a tie (p = 0.50).
+  stays below the 2B (54 vs 90, Holm p = 0.04). Its format holds (parse_ok 98.8 vs 98.9); it loses
+  on argument values, in every BFCL category.
+- **On xLAM, D and B are not significantly different under strict exact; they differ in kind.** On
+  test-clean D scores 83.3 and B 83.4 (60 vs 62 rows, p = 0.93): 129% of the gap to the 2B, 74% of
+  A's gain. That tie is two effects cancelling. D is better at choosing functions and completing
+  every call: under lenient exact, which ignores optional arguments at their default, it leads
+  (68 vs 44, p = 0.03, unadjusted). B is better at xLAM's habit of writing out or leaving out
+  defaults (on the 123 test-clean rows that turn on it, B gets 52 and D 41). D also stays closer to
+  the teacher: it repeats 42% of the 2B's wrong test-clean answers, B 35%.
+- **On BFCL, D reaches 82.5, not significantly different from the 2B (p = 0.93).** It is above B's
+  selected checkpoint (62 vs 28, Holm p = 0.006), from argument values and function choice, not
+  format. That holds for B's selected checkpoint only: B's BFCL keeps rising after it, to 81.1 at the
+  end of its epoch (5.1 GPU-hours), which D doesn't significantly beat (p = 0.12; #70). D took
+  13.5 GPU-hours, and D's own BFCL rises with training (78.7 at step 500, p = 0.0002 against step
+  3000), so with one seed the data can't tell on-policy training from more training.
+- **Per GPU-hour, B is at least as good.** At B's budget (step 500, 2.2 GPU-hours) D is behind on
+  test-clean, 81.0 vs 83.4 (p = 0.006, Holm 0.06), a gap that comes from the default habit (p = 0.14
+  without those 123 rows), and not significantly different on BFCL. Validation, on 1,000 rows, called
+  it a tie. On BFCL, B's last checkpoint beats D's checkpoints at a similar cost (4.5 and 6.8
+  GPU-hours: p = 0.002 and 0.006; #70). B's GPU-hours are charged for the teacher answering all
+  54,561 train rows (1.43 h), though by its selected step it had trained on about 24,000 (≈0.63 h).
 - **D's loss on top of B doesn't help.** B then D continues B's selected checkpoint with D's loss
   (lr 5e-5, a fourth of D's, stopped at step 1000 of the epoch, #58). No checkpoint beat B on
-  validation; its best, step 400 (1.65 GPU-hours on top of B's), is behind B on test-clean (81.7 vs
-  83.4, p = 0.01) and level on BFCL (78.9 vs 79.1, p = 0.91), below D there (p = 0.0001). Likely
-  because the teacher that D's loss pulls towards is below B on xLAM, and on BFCL the gain D made
-  from the raw student didn't appear from B in 1,000 steps. One learning rate, one seed: the run
-  wasn't resumed.
-- **Labels still buy a lot.** A beats B and D on test and test-clean (p < 0.0001); the teacher's
-  outputs agree with gold on only 67.6% of the train rows B learns from. On BFCL, A, D and the 2B
-  are level.
-- **Training only on the teacher outputs that match gold gains about 2 points.** Filtered B
-  keeps only the 37,696 teacher outputs that lenient-match gold (#60). It beats B on test-clean
-  (85.7 vs 83.4, p = 0.007; 140% of the gap, 80% of A's gain), from fewer rows and fewer GPU-hours
-  (2.50 vs 3.12), and ties it on BFCL (80.8 vs 79.1, p = 0.18). A is still 7.5 points ahead on
-  test-clean and 3.7 on BFCL (p < 0.0001, p = 0.001): what's left likely comes from the 17,000
-  dropped rows, probably the harder ones, and gold's own wording. Filtered B also differs from B in
+  validation. Its pick, step 400 (1.65 GPU-hours on top of B's), is behind B on test-clean under
+  strict exact (81.7 vs 83.4, 42 vs 70, p = 0.01, Holm 0.08) and level under lenient (43 vs 47,
+  p = 0.75): it moves B towards the teacher's conventions. Of the 70 test-clean rows it turns wrong,
+  29 differ only by a default and 31 now give the 2B's answer. On BFCL it is not significantly
+  different from B (78.9 vs 79.1, p = 0.91) and below D (Holm p = 0.002). One learning rate, one
+  seed: the run wasn't resumed.
+- **Labels still buy a lot, partly by learning gold's quirks.** A beats B and D on test and
+  test-clean (Holm p < 0.0001); the teacher's outputs agree with gold on only 67.6% of the train rows
+  B learns from. But on the 287 test rows whose gold is one reasonable answer among several, A
+  matches gold's choice 56% of the time, against 17% for the 2B and 22% for B (ADR 0005's addendum).
+  That is why methods are compared on test-clean. On BFCL, A is not significantly different from the
+  2B (p = 0.20) or D (p = 0.11). It leaves out required arguments whose description mentions a
+  default (51 arguments, about 23 rows), an xLAM gold habit.
+- **Training only on the teacher outputs that match gold gains about 2 points, not robustly.**
+  Filtered B keeps the 37,696 teacher outputs that lenient-match gold (#60). It beats B on test-clean
+  (85.7 vs 83.4, p = 0.007; 140% of the gap, 80% of A's gain), but not after Holm (p = 0.06), and its
+  lead shrinks from validation (+5.8) to test (+3.6) to test-clean (+2.3): part of it is gold's
+  quirks, which the filter lets through (34% on ambiguous rows, B 22%). It uses fewer rows and fewer
+  GPU-hours (2.50 vs 3.12), and is not significantly different from B on BFCL (80.8 vs 79.1,
+  p = 0.18), where it chooses functions worse. A is still 7.5 points ahead on test-clean and 3.7 on
+  BFCL (Holm p < 0.0001, 0.02); under lenient exact the test-clean gap is 5.1, so about a third is
+  the optional-argument convention. The rest likely comes from the 17,000 dropped rows, which hold
+  most of the train rows whose values aren't written in the query. Filtered B also differs from B in
   its schedule length (2,356 steps vs 3,277), and each is one seed.
 
 B's and filtered B's GPU-hours include the 1.43 h the teacher took to answer the train split; D's
 include its own sampling and the teacher's grading, inside every step; B then D's include B's.
-Next: logit distillation, C (#59).
+Checkpoints are each run's best on validation (ADR 0006); the pick within a run is noisy, so a claim
+that rests on it names the checkpoint (ADR 0009). Next: grounded B, label-free (#75), and logit
+distillation, C (#59).
 
 Training cost (#36): one epoch of LoRA SFT over the full train split takes about 3.9 GPU-hours on the
 RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the
@@ -143,9 +174,14 @@ Shortcuts taken on purpose, why, and what would make us revisit them.
 - **One small teacher.** The 2B is right on about 65% of train rows; a stronger teacher would likely
   lift every label-free method. The results are about this pair (ADR 0004).
 - **Validation is not audited, and the pick within a run is noisy.** Checkpoints are chosen on raw
-  validation labels (ADR 0005), and 1,000 rows can't separate most checkpoints of a run. Test
-  numbers stay fair for the checkpoint picked, so methods are compared on `test-clean`, never on
-  validation (ADR 0009).
+  validation labels (ADR 0005). 1,000 rows detect a difference of about 2.4 points at 80% power,
+  so they can't separate most checkpoints of a run, nor B from D. Test numbers stay fair for the
+  checkpoint picked, so methods are compared on `test-clean`, never on validation (ADR 0009).
+- **Methods learn gold's quirks at different rates.** On the 287 ambiguous test rows A matches
+  gold's arbitrary choice 56% of the time, filtered B 34%, B 22%, the 2B 17%. Raw test rewards that;
+  `test-clean` leaves those rows out (ADR 0005).
+- **B's lead over its teacher is unexplained in size.** It is +2.8 points on validation and +6.1 on
+  test, a difference of about two standard errors between two random samples of the same data.
 
 ## Quickstart
 

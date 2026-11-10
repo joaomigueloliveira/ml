@@ -86,6 +86,11 @@ chunk so neither model's full logits are ever held at once.
   splits, and took the same 0.15, chosen before any of their BFCL scores existed (B then D's test
   scores did). Over all 1,000 BFCL rows they change 509 and 545 answers from the raw 0.8B's.
 - The learning rate is untuned for a loss it wasn't chosen for. The README lists it.
+- **D's validation dip at step 1000 (65.7, against 70.0 at step 500) is missing calls**, not a
+  broken run: 52 validation outputs stop before a call gold makes, against 16 at step 1500. It is
+  temporary (42 of the 76 rows lost from step 500 are back by step 1500), comes near the peak
+  learning rate (about 1.9e-4), and doesn't show in the training metrics: the loss keeps falling and
+  rollout parse_ok stays above 97% (external review 2026-11-09, s6 and s7).
 - Temperature-1.0 samples from the raw student break the JSON more often than greedy decoding
   (parse_ok 84.5% on validation, greedy); those tokens are still graded by the teacher.
 - **B then D** (#58) ran at lr 5e-5 (LoRA continuing an SFT adapter; on-policy rates in the
