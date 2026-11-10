@@ -74,6 +74,7 @@ Each claim below compares two models on the same rows with a paired McNemar test
 p-value adjusted over every claim listed in [`results/methods.md`](results/methods.md#readme-claims),
 which also gives each one under lenient exact. "Not significantly different" means the test can't
 separate them, not that they are equal: a paired difference carries about ±2 points.
+The Holm values move as claims are added: each new claim widens the family.
 
 - **Without labels, B beats its own teacher on xLAM test-clean.** It recovers 130% of the 22.0-point
   gap from the 0.8B to the 2B (159 rows only B gets right against 52, Holm p < 0.0001) and reaches
@@ -136,19 +137,22 @@ separate them, not that they are equal: a paired difference carries about ±2 po
   the optional-argument convention. The rest likely comes from the 17,000 dropped rows, which hold
   most of the train rows whose values aren't written in the query. Filtered B also differs from B in
   its schedule length (2,356 steps vs 3,277), and each is one seed.
-
 - **A label-free filter on the teacher's outputs doesn't do what filtering against gold does.**
   Grounded B keeps only the 33,918 teacher outputs that call offered tools with their required
   arguments and write every value as it appears in the query (#74): they agree with gold 86.8% of the
   time under lenient exact, against 71.9% for all of B's data. Its selected step, 1500, is not
   significantly different from B on test-clean (82.9 vs 83.4, 89 vs 97, p = 0.61) or BFCL (79.8 vs
-  79.1, p = 0.58), and filtered B beats it on test-clean (125 vs 80, Holm p = 0.03). The tie is two
-  effects cancelling. On the test rows whose values are all in the query it gains as much as filtered
-  B (85.9, against B's 83.2 and filtered B's 86.0). On the 605 rows that need a value the query
-  doesn't spell out it falls behind (36.7, against 43.5 and 48.9), since the rule dropped 91% of
-  such train rows (#75).
+  79.1, p = 0.58); under lenient exact B leads (97 vs 69, p = 0.04, unadjusted). Filtered B beats it
+  on test-clean (125 vs 80, Holm p = 0.03). The tie is two effects cancelling (test-clean, computed
+  from the saved predictions in #75). On the 1,261 rows whose values are all in the query it gains on
+  B (90.5 vs 88.4, p = 0.01), level with filtered B (89.8). On the 364 rows that need a value the
+  query doesn't spell out it falls behind (56.6 vs 65.9, p = 0.0004; filtered B 71.2), since the rule
+  dropped 91% of B's training rows of that kind. Its epoch is shorter too (2,120 steps vs 3,277), and
+  each is one seed. It doesn't become a separate headline candidate: it ties B at the same cost
+  (3.02 vs 3.12 GPU-hours) and trails it under lenient, so B stays the label-free reference, and
+  Phase 4 chooses among the methods test-clean can't separate (ADR 0009).
 
-B's and filtered B's GPU-hours include the 1.43 h the teacher took to answer the train split; D's
+B's, grounded B's and filtered B's GPU-hours include the 1.43 h the teacher took to answer the train split; D's
 include its own sampling and the teacher's grading, inside every step; B then D's include B's.
 Checkpoints are each run's best on validation (ADR 0006); the pick within a run is noisy, so a claim
 that rests on it names the checkpoint (ADR 0009). Next: logit distillation, C (#59).

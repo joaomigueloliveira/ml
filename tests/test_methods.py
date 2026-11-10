@@ -168,6 +168,32 @@ def test_at_bs_budget_takes_the_best_checkpoint_within_bs_gpu_hours(
     assert "| D | 500 | 2.00 |" in md
 
 
+def test_a_method_selected_within_bs_budget_gets_no_second_entry_at_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    splits = tmp_path / "splits.json"
+    splits.write_text(json.dumps({"test-clean": [0, 1, 2, 3]}))
+    val = range(10)
+    _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-0.8B", _rows(val, {0}), {})
+    _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-2B", _rows(val, set(range(5))), {})
+    by_key = {m.key: m for m in METHODS}
+    # Grounded B's selected checkpoint (1.5 GPU-h) already fits B's 3.1: the headline shows it.
+    runs = {"B": {1000: (3.1, 7)}, "Bg": {500: (1.0, 4), 1000: (1.5, 6)}}
+    for key, checkpoints in runs.items():
+        for step, (hours, k) in checkpoints.items():
+            _write_run(
+                tmp_path / f"eval-validation-{by_key[key].train_run}-checkpoint-{step}",
+                _rows(val, set(range(k))),
+                {"adapter": {"gpu_hours": hours}},
+            )
+    monkeypatch.setattr(methods, "load_split", lambda split, path: [])
+
+    data = build(tmp_path, splits)
+
+    assert data["methods"]["Bg"]["selected"] == 1000
+    assert "Bg" not in data["at_b_budget"]
+
+
 def test_a_pipeline_counts_the_gpu_hours_of_the_checkpoint_it_continues(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
