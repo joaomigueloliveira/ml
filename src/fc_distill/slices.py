@@ -12,12 +12,14 @@ ADR 0001: a slice is reported on its own only with at least 300 rows. Every buck
 row count and 95% intervals, and buckets under the minimum are flagged `too_small`.
 """
 
+import json
 import re
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from typing import Any
 
-from fc_distill.data import Example
+from fc_distill.data import Call, Example
 from fc_distill.eda import call_pattern as _raw_call_pattern
+from fc_distill.scoring import validity
 from fc_distill.stats import MIN_ROWS, metric_block
 
 _NUMBER = re.compile(r"-?\d[\d,]*(?:\.\d+)?|-?\.\d+")
@@ -110,3 +112,11 @@ def slice_scores(
             for bucket, rows in groups.items()
         }
     return out
+
+
+def grounded(calls: Sequence[Call], ex: Example) -> bool:
+    """Grounded B's rule (#74), label-free: the calls pass the validity check (every called tool
+    offered, required arguments present) and every argument value is written in the query."""
+    return validity(json.dumps(calls), ex["tools"]) == "valid" and all(
+        value_in_query(v, ex["query"]) for c in calls for v in c["arguments"].values()
+    )

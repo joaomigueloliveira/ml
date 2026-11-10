@@ -80,7 +80,7 @@ def test_teacher_record_prompts_like_gold_and_completes_with_the_teacher_calls_i
     # The teacher's own layout (a fence, newlines); the target is its calls, written as gold is.
     teacher = '```json\n[\n  {"name": "f", "arguments": {"x": 7}}\n]\n```'
 
-    [record], _ = teacher_records([ex], {1: teacher}, lenient_only=False)
+    [record], _ = teacher_records([ex], {1: teacher}, rule="none")
 
     assert record["prompt"] == sft_record(ex)["prompt"]
     assert record["chat_template_kwargs"] == {"enable_thinking": False}
@@ -93,7 +93,7 @@ def test_teacher_record_keeps_only_name_and_arguments_in_gold_key_order() -> Non
     ex = make_example(1)
     teacher = '[{"arguments": {"x": 3}, "name": "f", "type": "function"}, {"name": "f"}]'
 
-    [record], _ = teacher_records([ex], {1: teacher}, lenient_only=False)
+    [record], _ = teacher_records([ex], {1: teacher}, rule="none")
 
     assert record["completion"][0]["content"] == (
         '[{"name": "f", "arguments": {"x": 3}}, {"name": "f", "arguments": {}}]'
@@ -119,24 +119,48 @@ def _answers(records: list[SftRecord]) -> list[str]:
 
 
 def test_unfiltered_teacher_records_keep_wrong_calls_and_drop_what_does_not_parse() -> None:
-    records, counts = teacher_records(_ROWS, _OUTPUTS, lenient_only=False)
+    records, counts = teacher_records(_ROWS, _OUTPUTS, rule="none")
 
     assert _answers(records) == [
         '[{"name": "f", "arguments": {"x": 1}}]',
         '[{"name": "f", "arguments": {"x": 1, "unit": "km"}}]',
         '[{"name": "f", "arguments": {"x": 2}}]',
     ]
-    assert counts == {"offered": 4, "kept": 3, "unparsed": 1, "not_lenient": 0}
+    assert counts == {"offered": 4, "kept": 3, "unparsed": 1, "filtered_out": 0}
 
 
 def test_lenient_teacher_records_keep_only_calls_that_lenient_match_gold() -> None:
-    records, counts = teacher_records(_ROWS, _OUTPUTS, lenient_only=True)
+    records, counts = teacher_records(_ROWS, _OUTPUTS, rule="lenient")
 
     assert _answers(records) == [
         '[{"name": "f", "arguments": {"x": 1}}]',
         '[{"name": "f", "arguments": {"x": 1, "unit": "km"}}]',
     ]
-    assert counts == {"offered": 4, "kept": 2, "unparsed": 1, "not_lenient": 1}
+    assert counts == {"offered": 4, "kept": 2, "unparsed": 1, "filtered_out": 1}
+
+
+def test_grounded_teacher_records_keep_valid_calls_whose_values_are_all_in_the_query() -> None:
+    # Label-free (#74): the rule reads the query and the offered tools, never gold.
+    rows = [
+        make_example(
+            i,
+            query="Convert 1 mile",
+            answers=[{"name": "f", "arguments": {"x": 9}}],
+            params=_PARAMS,
+        )
+        for i in (1, 2, 3, 4, 5)
+    ]
+    outputs = {
+        1: '[{"name": "f", "arguments": {"x": 1}}]',  # 1 is in the query: kept, though gold says 9
+        2: '[{"name": "f", "arguments": {"x": 2}}]',  # 2 isn't in the query
+        3: '[{"name": "f", "arguments": {"x": 1, "unit": "km"}}]',  # "km" isn't either
+        4: '[{"name": "f", "arguments": {}}]',  # leaves out the required x
+        5: '[{"name": "g", "arguments": {"x": 1}}]',  # calls a tool that wasn't offered
+    }
+    records, counts = teacher_records(rows, outputs, rule="grounded")
+
+    assert _answers(records) == ['[{"name": "f", "arguments": {"x": 1}}]']
+    assert counts == {"offered": 5, "kept": 1, "unparsed": 0, "filtered_out": 4}
 
 
 def _write_teacher_run(run_dir: Path, split: str, outputs: dict[int, str]) -> None:
@@ -160,7 +184,7 @@ def test_teacher_run_pairs_each_output_with_its_own_row(tmp_path: Path) -> None:
     _write_teacher_run(tmp_path / "teacher", "train", outputs)
 
     run = load_teacher_run(tmp_path / "teacher")
-    records, _ = teacher_records(rows, run.outputs, lenient_only=False)
+    records, _ = teacher_records(rows, run.outputs, rule="none")
 
     assert [r["prompt"] for r in records] == [to_messages(ex) for ex in rows]
     assert _answers(records) == [json.dumps(ex["answers"]) for ex in rows]

@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from fc_distill import methods
-from fc_distill.methods import METHODS, build, gains, render, select, validity
+from fc_distill.methods import METHODS, build, gains, render, select, teacher_counts, validity
 from tests.factories import make_example
 
 TOOL = {
@@ -102,7 +102,12 @@ def test_build_selects_per_method_compares_and_renders(
     assert data["headline"]["B/validation"] == {"gap_recovered": 1.25, "share_of_a": 0.625}
     a_vs_b = next(c for c in data["mcnemar"] if (c["a"], c["b"]) == ("A", "B"))
     assert (a_vs_b["only_a_right"], a_vs_b["only_b_right"]) == (3, 0)
-    assert data["teacher"]["variants"]["unfiltered"] == {"kept": 1, "exact": 1.0}
+    assert data["teacher"]["variants"]["unfiltered"] == {
+        "kept": 1,
+        "exact": 1.0,
+        "lenient": 1.0,
+        "not_in_query_kept": 1,
+    }
     assert data["teacher"]["unparsed"] == 1
     md = render(data)
     assert "**B**, SFT on teacher outputs (step 500)" in md
@@ -253,3 +258,17 @@ def test_claims_are_reported_under_strict_lenient_and_without_the_default_rows(
     md = render(data)
     assert "## README claims" in md
     assert "## Default made explicit" in md
+
+
+def test_teacher_counts_keep_grounded_outputs_without_looking_at_gold() -> None:
+    # Gold says Porto for both rows; the teacher wrote Lisbon, which only row 2's query mentions.
+    gold = [{"name": "weather", "arguments": {"city": "Porto"}}]
+    examples = {
+        i: make_example(i, query=q, answers=gold) | {"tools": [TOOL]}
+        for i, q in ((1, "Weather in Porto?"), (2, "Weather in Lisbon?"))
+    }
+    out = '[{"name": "weather", "arguments": {"city": "Lisbon"}}]'
+    records = [{"id": i, "prediction": out, "exact": False, "lenient_exact": False} for i in (1, 2)]
+    grounded = teacher_counts(records, examples)["variants"]["grounded"]
+    # Kept on row 2 although it's wrong: the rule never reads gold.
+    assert (grounded["kept"], grounded["exact"]) == (1, 0.0)

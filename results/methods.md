@@ -244,12 +244,13 @@ Exact McNemar test on strict exact, row by row.
 
 ## Teacher outputs (method B)
 
-The 2B answered all 54,561 train rows in 1.43 GPU-hours (#44). Rows each variant would train on, and how many of them match gold:
+The 2B answered all 54,561 train rows in 1.43 GPU-hours (#44). Rows each variant would train on, how many of them match gold, and how many of the 16,316 train rows whose gold values aren't all written in the query each keeps:
 
-| Variant | Uses labels | Rows kept | Exact vs gold |
-|---|---:|---:|---:|
-| unfiltered (parses), method B | no | 52,424 | 67.6 |
-| validity check (tools offered, non-optional arguments present) | no | 50,919 | 69.0 |
-| lenient match with gold, filtered B | yes | 37,696 | 94.0 |
+| Variant | Uses labels | Rows kept | Exact vs gold | Lenient vs gold | Values not in query, kept |
+|---|---:|---:|---:|---:|---:|
+| unfiltered (parses), method B | no | 52,424 | 67.6 | 71.9 | 15,547 |
+| validity check (tools offered, required arguments present) | no | 50,919 | 69.0 | 73.4 | 14,766 |
+| validity check and every value in the query, grounded B | no | 33,918 | 84.7 | 86.8 | 1,360 |
+| lenient match with gold, filtered B | yes | 37,696 | 94.0 | 100.0 | 7,186 |
 
-The validity check drops 22 outputs calling a tool that wasn't offered and 1,483 missing an argument not marked optional. The same rule rejects 1,798 gold answers, because xLAM doesn't always mark optional arguments, so only the unknown-function count is a clean signal. It moves the kept rows' agreement with gold from 67.6% to 69.0%, so it is reported, not trained (ADR 0007).
+The validity check drops 22 outputs calling a tool that wasn't offered and 1,483 missing an argument not marked optional. The same rule rejects 1,798 gold answers, because xLAM doesn't always mark optional arguments, so only the unknown-function count is a clean signal. It moves the kept rows' agreement with gold from 67.6% to 69.0%, so it is reported, not trained (ADR 0007). Grounded B adds that every argument value is written in the query: still label-free, but by construction it drops most rows whose answer needs a value the query doesn't spell out (#74).

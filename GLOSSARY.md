@@ -18,7 +18,8 @@ SFT on teacher outputs; C, logit distillation; D, on-policy distillation; E, GRP
 _Avoid_: arm
 
 **Label-free method**:
-A method whose training never sees gold labels, only queries and the teacher: B (unfiltered), C, D.
+A method whose training never sees gold labels, only queries and the teacher: B (unfiltered),
+grounded B, C, D.
 The main question (ADR 0007).
 
 **With-labels method**:
@@ -38,6 +39,14 @@ An answer the student samples during training, to be graded: by the teacher in D
 
 **Variant**:
 A named change within a method, e.g. method B filtered to the teacher outputs that match gold.
+
+**Filtered B**:
+Method B trained only on the teacher outputs that lenient-match gold. Uses labels, as a filter.
+
+**Grounded B**:
+Method B trained only on the teacher outputs that call offered tools with their required arguments
+and whose every argument value is written in the query. Label-free: the rule reads the query and
+the tools, never gold.
 
 **Run**:
 One training job of a method or variant, with its own checkpoints and its own W&B run.
