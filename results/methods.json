@@ -194,7 +194,8 @@
      "lenient_exact_ci": [
       0.7678,
       0.8179
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 1000,
@@ -214,7 +215,8 @@
      "lenient_exact_ci": [
       0.7992,
       0.8464
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 1500,
@@ -234,7 +236,8 @@
      "lenient_exact_ci": [
       0.7887,
       0.8369
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 2000,
@@ -254,7 +257,8 @@
      "lenient_exact_ci": [
       0.8213,
       0.8661
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 2500,
@@ -274,7 +278,8 @@
      "lenient_exact_ci": [
       0.8149,
       0.8605
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 3000,
@@ -294,7 +299,8 @@
      "lenient_exact_ci": [
       0.8223,
       0.867
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 3411,
@@ -314,7 +320,18 @@
      "lenient_exact_ci": [
       0.8244,
       0.8689
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.845,
+      "exact_ci": [
+       0.8213,
+       0.8661
+      ],
+      "agrees_with_teacher": 0.617,
+      "copies_teacher_errors": 23,
+      "teacher_errors": 162
+     }
     }
    ],
    "selected": 3411,
@@ -394,7 +411,18 @@
      "lenient_exact_ci": [
       0.6219,
       0.6809
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.727,
+      "exact_ci": [
+       0.6986,
+       0.7537
+      ],
+      "agrees_with_teacher": 0.643,
+      "copies_teacher_errors": 47,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 1000,
@@ -414,7 +442,18 @@
      "lenient_exact_ci": [
       0.6986,
       0.7537
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.779,
+      "exact_ci": [
+       0.7522,
+       0.8036
+      ],
+      "agrees_with_teacher": 0.685,
+      "copies_teacher_errors": 49,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 1500,
@@ -434,7 +473,18 @@
      "lenient_exact_ci": [
       0.7047,
       0.7595
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.791,
+      "exact_ci": [
+       0.7647,
+       0.8151
+      ],
+      "agrees_with_teacher": 0.717,
+      "copies_teacher_errors": 64,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 2000,
@@ -454,7 +504,18 @@
      "lenient_exact_ci": [
       0.7047,
       0.7595
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.789,
+      "exact_ci": [
+       0.7626,
+       0.8132
+      ],
+      "agrees_with_teacher": 0.726,
+      "copies_teacher_errors": 65,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 2500,
@@ -474,7 +535,18 @@
      "lenient_exact_ci": [
       0.7109,
       0.7653
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.801,
+      "exact_ci": [
+       0.7751,
+       0.8246
+      ],
+      "agrees_with_teacher": 0.721,
+      "copies_teacher_errors": 61,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 3000,
@@ -494,7 +566,18 @@
      "lenient_exact_ci": [
       0.7099,
       0.7643
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.809,
+      "exact_ci": [
+       0.7835,
+       0.8322
+      ],
+      "agrees_with_teacher": 0.729,
+      "copies_teacher_errors": 61,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 3277,
@@ -514,7 +597,18 @@
      "lenient_exact_ci": [
       0.7109,
       0.7653
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.811,
+      "exact_ci": [
+       0.7856,
+       0.8341
+      ],
+      "agrees_with_teacher": 0.732,
+      "copies_teacher_errors": 61,
+      "teacher_errors": 162
+     }
     }
    ],
    "selected": 1500,
@@ -596,7 +690,8 @@
      "lenient_exact_ci": [
       0.7336,
       0.7864
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 1000,
@@ -616,7 +711,18 @@
      "lenient_exact_ci": [
       0.7626,
       0.8132
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.808,
+      "exact_ci": [
+       0.7824,
+       0.8312
+      ],
+      "agrees_with_teacher": 0.667,
+      "copies_teacher_errors": 35,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 1500,
@@ -636,7 +742,8 @@
      "lenient_exact_ci": [
       0.7647,
       0.8151
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 2000,
@@ -656,7 +763,8 @@
      "lenient_exact_ci": [
       0.7751,
       0.8246
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 2356,
@@ -676,7 +784,8 @@
      "lenient_exact_ci": [
       0.7751,
       0.8246
-     ]
+     ],
+     "bfcl": null
     }
    ],
    "selected": 1000,
@@ -756,7 +865,18 @@
      "lenient_exact_ci": [
       0.6975,
       0.7527
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.787,
+      "exact_ci": [
+       0.7606,
+       0.8113
+      ],
+      "agrees_with_teacher": 0.704,
+      "copies_teacher_errors": 49,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 1000,
@@ -776,7 +896,18 @@
      "lenient_exact_ci": [
       0.6699,
       0.7266
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.778,
+      "exact_ci": [
+       0.7512,
+       0.8027
+      ],
+      "agrees_with_teacher": 0.697,
+      "copies_teacher_errors": 48,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 1500,
@@ -796,7 +927,18 @@
      "lenient_exact_ci": [
       0.7109,
       0.7653
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.782,
+      "exact_ci": [
+       0.7554,
+       0.8065
+      ],
+      "agrees_with_teacher": 0.688,
+      "copies_teacher_errors": 52,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 2000,
@@ -816,7 +958,18 @@
      "lenient_exact_ci": [
       0.7006,
       0.7556
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.798,
+      "exact_ci": [
+       0.772,
+       0.8217
+      ],
+      "agrees_with_teacher": 0.704,
+      "copies_teacher_errors": 52,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 2500,
@@ -836,7 +989,18 @@
      "lenient_exact_ci": [
       0.7016,
       0.7566
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.818,
+      "exact_ci": [
+       0.7929,
+       0.8407
+      ],
+      "agrees_with_teacher": 0.742,
+      "copies_teacher_errors": 53,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 3000,
@@ -856,7 +1020,18 @@
      "lenient_exact_ci": [
       0.7047,
       0.7595
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.825,
+      "exact_ci": [
+       0.8002,
+       0.8473
+      ],
+      "agrees_with_teacher": 0.755,
+      "copies_teacher_errors": 59,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 3410,
@@ -876,7 +1051,18 @@
      "lenient_exact_ci": [
       0.7088,
       0.7633
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.819,
+      "exact_ci": [
+       0.7939,
+       0.8416
+      ],
+      "agrees_with_teacher": 0.752,
+      "copies_teacher_errors": 60,
+      "teacher_errors": 162
+     }
     }
    ],
    "selected": 3000,
@@ -958,7 +1144,8 @@
      "lenient_exact_ci": [
       0.6893,
       0.745
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 200,
@@ -978,7 +1165,8 @@
      "lenient_exact_ci": [
       0.7047,
       0.7595
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 300,
@@ -998,7 +1186,8 @@
      "lenient_exact_ci": [
       0.7037,
       0.7585
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 400,
@@ -1018,7 +1207,18 @@
      "lenient_exact_ci": [
       0.7088,
       0.7633
-     ]
+     ],
+     "bfcl": {
+      "n": 1000,
+      "exact": 0.789,
+      "exact_ci": [
+       0.7626,
+       0.8132
+      ],
+      "agrees_with_teacher": 0.707,
+      "copies_teacher_errors": 57,
+      "teacher_errors": 162
+     }
     },
     {
      "step": 500,
@@ -1038,7 +1238,8 @@
      "lenient_exact_ci": [
       0.7047,
       0.7595
-     ]
+     ],
+     "bfcl": null
     },
     {
      "step": 1000,
@@ -1058,7 +1259,8 @@
      "lenient_exact_ci": [
       0.6975,
       0.7527
-     ]
+     ],
+     "bfcl": null
     }
    ],
    "selected": 400,
@@ -1179,6 +1381,17 @@
     0.6975,
     0.7527
    ],
+   "bfcl": {
+    "n": 1000,
+    "exact": 0.787,
+    "exact_ci": [
+     0.7606,
+     0.8113
+    ],
+    "agrees_with_teacher": 0.704,
+    "copies_teacher_errors": 49,
+    "teacher_errors": 162
+   },
    "official": {
     "test": {
      "n": 2000,
