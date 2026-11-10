@@ -31,6 +31,46 @@ Gap recovered = (method - raw 0.8B) / (raw 2B - raw 0.8B); share of A's gain = (
 | B→D | validation | 111% | 62% |
 | B→D | test-clean | 122% | 70% |
 
+## README claims
+
+Each pairwise comparison the README states, as first / second right on the rows where only one is (#68). Strict exact is the headline; Holm adjusts its p-values over the claims listed. Lenient exact ignores optional arguments passed at their declared default or null, on either side (BFCL has no lenient score). On test-clean, the last column leaves out the rows the audit tags "default made explicit" (see below). The lenient and last columns give unadjusted p-values.
+
+| First | Second | Eval | Strict | Holm p | Lenient | Strict, no default rows |
+|---|---:|---:|---:|---:|---:|---:|
+| B | raw 2B | test-clean | 159 / 52, < 0.0001 | < 0.0001 | 139 / 57, < 0.0001 | 124 / 44, < 0.0001 |
+| B | raw 2B | bfcl | 54 / 90, 0.0034 | 0.0373 | - | - |
+| A | raw 2B | bfcl | 96 / 78, 0.1973 | 1.0000 | - | - |
+| D | B | test-clean | 60 / 62, 0.9279 | 1.0000 | 68 / 44, 0.0293 | 51 / 41, 0.3481 |
+| D | raw 2B | bfcl | 60 / 62, 0.9279 | 1.0000 | - | - |
+| D | B | bfcl | 62 / 28, 0.0004 | 0.0057 | - | - |
+| D@500 | B | test-clean | 71 / 109, 0.0057 | 0.0567 | 72 / 99, 0.0465 | 63 / 82, 0.1347 |
+| D@500 | B | bfcl | 61 / 65, 0.7894 | 1.0000 | - | - |
+| B→D | B | test-clean | 42 / 70, 0.0104 | 0.0833 | 43 / 47, 0.7520 | 37 / 42, 0.6530 |
+| B→D | B | bfcl | 40 / 42, 0.9122 | 1.0000 | - | - |
+| B→D | D | bfcl | 24 / 60, 0.0001 | 0.0015 | - | - |
+| A | B | test-clean | 200 / 40, < 0.0001 | < 0.0001 | 157 / 31, < 0.0001 | 148 / 33, < 0.0001 |
+| A | D | test-clean | 200 / 38, < 0.0001 | < 0.0001 | 135 / 33, < 0.0001 | 140 / 35, < 0.0001 |
+| A | D | bfcl | 80 / 60, 0.1080 | 0.7559 | - | - |
+| Bf | B | test-clean | 107 / 70, 0.0066 | 0.0598 | 103 / 61, 0.0013 | 88 / 57, 0.0125 |
+| Bf | B | bfcl | 79 / 62, 0.1776 | 1.0000 | - | - |
+| A | Bf | test-clean | 156 / 33, < 0.0001 | < 0.0001 | 111 / 27, < 0.0001 | 112 / 28, < 0.0001 |
+| A | Bf | bfcl | 82 / 45, 0.0013 | 0.0157 | - | - |
+
+## Default made explicit
+
+Strict exact on the 123 test-clean rows the audit tags "default made explicit", and on the rest. On these rows gold and a baseline differed only by an optional argument at its default, in either direction: gold wrote it and the model left it out, or the reverse. Which way gold goes is xLAM's labelling habit, so a method can gain or lose here by matching that habit, though some of these rows also hold content errors. The audit only looked at rows a baseline got wrong, so the baselines score low here by construction, and the rest still holds rows where gold passes a default that no audited model disagreed with.
+
+| Model | Default made explicit (123) | Rest |
+|---|---:|---:|
+| raw 0.8B | 17.1 | 57.9 |
+| raw 2B | 20.3 | 81.4 |
+| A | 78.9 | 94.4 |
+| B | 42.3 | 86.8 |
+| Bf | 47.1 | 88.8 |
+| D | 32.5 | 87.4 |
+| B→D | 23.6 | 86.4 |
+| D@500 | 26.8 | 85.5 |
+
 ## At B's budget
 
 Each label-free method at its best checkpoint on validation within B's 3.12 GPU-hours (ADR 0008), with its official scores, against B's selected checkpoint. Only B / only it right are the McNemar counts on each eval.
@@ -39,12 +79,12 @@ Each label-free method at its best checkpoint on validation within B's 3.12 GPU-
 |---|---:|---:|---:|---:|---:|---:|
 | D | 500 | 2.22 | 70.0 [67.1, 72.8] | 69.0 [67.0, 71.0] | 81.0 [79.1, 82.9] | 78.7 [76.1, 81.1] |
 
-| Method | Eval | Only B right | Only it right | p |
-|---|---:|---:|---:|---:|
-| D | validation | 57 | 49 | 0.4968 |
-| D | test | 137 | 94 | 0.0056 |
-| D | test-clean | 109 | 71 | 0.0057 |
-| D | bfcl | 65 | 61 | 0.7894 |
+| Method | Eval | Only B right | Only it right | p | Lenient: only B / only it, p |
+|---|---:|---:|---:|---:|---:|
+| D | validation | 57 | 49 | 0.4968 | 56 / 49, 0.5584 |
+| D | test | 137 | 94 | 0.0056 | 124 / 95, 0.0582 |
+| D | test-clean | 109 | 71 | 0.0057 | 99 / 72, 0.0465 |
+| D | bfcl | 65 | 61 | 0.7894 | - |
 
 ## Validation curves
 
@@ -119,88 +159,88 @@ Selected: step 400. Inside its interval (statistically tied): 100, 200, 300, 500
 
 Exact McNemar test on strict exact, row by row.
 
-| A | B | Eval | Rows | Only A right | Only B right | p |
-|---|---:|---:|---:|---:|---:|---:|
-| raw 0.8B | A | validation | 1,000 | 10 | 391 | < 0.0001 |
-| raw 0.8B | A | test | 2,000 | 28 | 799 | < 0.0001 |
-| raw 0.8B | A | test-clean | 1,625 | 21 | 646 | < 0.0001 |
-| raw 0.8B | A | bfcl | 1,000 | 35 | 235 | < 0.0001 |
-| raw 2B | A | validation | 1,000 | 23 | 190 | < 0.0001 |
-| raw 2B | A | test | 2,000 | 44 | 436 | < 0.0001 |
-| raw 2B | A | test-clean | 1,625 | 35 | 302 | < 0.0001 |
-| raw 2B | A | bfcl | 1,000 | 78 | 96 | 0.1973 |
-| raw 0.8B | B | validation | 1,000 | 18 | 260 | < 0.0001 |
-| raw 0.8B | B | test | 2,000 | 55 | 555 | < 0.0001 |
-| raw 0.8B | B | test-clean | 1,625 | 39 | 504 | < 0.0001 |
-| raw 0.8B | B | bfcl | 1,000 | 48 | 194 | < 0.0001 |
-| raw 2B | B | validation | 1,000 | 34 | 62 | 0.0056 |
-| raw 2B | B | test | 2,000 | 66 | 187 | < 0.0001 |
-| raw 2B | B | test-clean | 1,625 | 52 | 159 | < 0.0001 |
-| raw 2B | B | bfcl | 1,000 | 90 | 54 | 0.0034 |
-| A | B | validation | 1,000 | 158 | 19 | < 0.0001 |
-| A | B | test | 2,000 | 322 | 51 | < 0.0001 |
-| A | B | test-clean | 1,625 | 200 | 40 | < 0.0001 |
-| A | B | bfcl | 1,000 | 100 | 46 | < 0.0001 |
-| raw 0.8B | Bf | validation | 1,000 | 20 | 320 | < 0.0001 |
-| raw 0.8B | Bf | test | 2,000 | 49 | 620 | < 0.0001 |
-| raw 0.8B | Bf | test-clean | 1,625 | 40 | 542 | < 0.0001 |
-| raw 0.8B | Bf | bfcl | 1,000 | 51 | 214 | < 0.0001 |
-| raw 2B | Bf | validation | 1,000 | 34 | 120 | < 0.0001 |
-| raw 2B | Bf | test | 2,000 | 74 | 266 | < 0.0001 |
-| raw 2B | Bf | test-clean | 1,625 | 58 | 202 | < 0.0001 |
-| raw 2B | Bf | bfcl | 1,000 | 96 | 77 | 0.1710 |
-| A | Bf | validation | 1,000 | 102 | 21 | < 0.0001 |
-| A | Bf | test | 2,000 | 245 | 45 | < 0.0001 |
-| A | Bf | test-clean | 1,625 | 156 | 33 | < 0.0001 |
-| A | Bf | bfcl | 1,000 | 82 | 45 | 0.0013 |
-| B | Bf | validation | 1,000 | 27 | 85 | < 0.0001 |
-| B | Bf | test | 2,000 | 85 | 156 | < 0.0001 |
-| B | Bf | test-clean | 1,625 | 70 | 107 | 0.0066 |
-| B | Bf | bfcl | 1,000 | 62 | 79 | 0.1776 |
-| raw 0.8B | D | validation | 1,000 | 20 | 260 | < 0.0001 |
-| raw 0.8B | D | test | 2,000 | 52 | 539 | < 0.0001 |
-| raw 0.8B | D | test-clean | 1,625 | 36 | 499 | < 0.0001 |
-| raw 0.8B | D | bfcl | 1,000 | 35 | 215 | < 0.0001 |
-| raw 2B | D | validation | 1,000 | 34 | 60 | 0.0095 |
-| raw 2B | D | test | 2,000 | 51 | 159 | < 0.0001 |
-| raw 2B | D | test-clean | 1,625 | 33 | 138 | < 0.0001 |
-| raw 2B | D | bfcl | 1,000 | 62 | 60 | 0.9279 |
-| A | D | validation | 1,000 | 162 | 21 | < 0.0001 |
-| A | D | test | 2,000 | 330 | 46 | < 0.0001 |
-| A | D | test-clean | 1,625 | 200 | 38 | < 0.0001 |
-| A | D | bfcl | 1,000 | 80 | 60 | 0.1080 |
-| B | D | validation | 1,000 | 39 | 37 | 0.9088 |
-| B | D | test | 2,000 | 85 | 72 | 0.3382 |
-| B | D | test-clean | 1,625 | 62 | 60 | 0.9279 |
-| B | D | bfcl | 1,000 | 28 | 62 | 0.0004 |
-| Bf | D | validation | 1,000 | 91 | 31 | < 0.0001 |
-| Bf | D | test | 2,000 | 156 | 72 | < 0.0001 |
-| Bf | D | test-clean | 1,625 | 102 | 63 | 0.0030 |
-| Bf | D | bfcl | 1,000 | 55 | 72 | 0.1554 |
-| B→D | D | validation | 1,000 | 30 | 32 | 0.8991 |
-| B→D | D | test | 2,000 | 49 | 63 | 0.2191 |
-| B→D | D | test-clean | 1,625 | 28 | 54 | 0.0054 |
-| B→D | D | bfcl | 1,000 | 24 | 60 | 0.0001 |
-| raw 0.8B | B→D | validation | 1,000 | 22 | 260 | < 0.0001 |
-| raw 0.8B | B→D | test | 2,000 | 51 | 524 | < 0.0001 |
-| raw 0.8B | B→D | test-clean | 1,625 | 38 | 475 | < 0.0001 |
-| raw 0.8B | B→D | bfcl | 1,000 | 58 | 202 | < 0.0001 |
-| raw 2B | B→D | validation | 1,000 | 29 | 53 | 0.0106 |
-| raw 2B | B→D | test | 2,000 | 60 | 154 | < 0.0001 |
-| raw 2B | B→D | test-clean | 1,625 | 47 | 126 | < 0.0001 |
-| raw 2B | B→D | bfcl | 1,000 | 92 | 54 | 0.0021 |
-| A | B→D | validation | 1,000 | 162 | 19 | < 0.0001 |
-| A | B→D | test | 2,000 | 345 | 47 | < 0.0001 |
-| A | B→D | test-clean | 1,625 | 223 | 35 | < 0.0001 |
-| A | B→D | bfcl | 1,000 | 113 | 57 | < 0.0001 |
-| B | B→D | validation | 1,000 | 30 | 26 | 0.6889 |
-| B | B→D | test | 2,000 | 80 | 53 | 0.0238 |
-| B | B→D | test-clean | 1,625 | 70 | 42 | 0.0104 |
-| B | B→D | bfcl | 1,000 | 42 | 40 | 0.9122 |
-| Bf | B→D | validation | 1,000 | 90 | 28 | < 0.0001 |
-| Bf | B→D | test | 2,000 | 172 | 74 | < 0.0001 |
-| Bf | B→D | test-clean | 1,625 | 123 | 58 | < 0.0001 |
-| Bf | B→D | bfcl | 1,000 | 79 | 60 | 0.1265 |
+| A | B | Eval | Rows | Only A right | Only B right | p | Lenient: only A / only B, p |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| raw 0.8B | A | validation | 1,000 | 10 | 391 | < 0.0001 | 11 / 361, < 0.0001 |
+| raw 0.8B | A | test | 2,000 | 28 | 799 | < 0.0001 | 25 / 748, < 0.0001 |
+| raw 0.8B | A | test-clean | 1,625 | 21 | 646 | < 0.0001 | 20 / 595, < 0.0001 |
+| raw 0.8B | A | bfcl | 1,000 | 35 | 235 | < 0.0001 | - |
+| raw 2B | A | validation | 1,000 | 23 | 190 | < 0.0001 | 25 / 158, < 0.0001 |
+| raw 2B | A | test | 2,000 | 44 | 436 | < 0.0001 | 41 / 375, < 0.0001 |
+| raw 2B | A | test-clean | 1,625 | 35 | 302 | < 0.0001 | 32 / 240, < 0.0001 |
+| raw 2B | A | bfcl | 1,000 | 78 | 96 | 0.1973 | - |
+| raw 0.8B | B | validation | 1,000 | 18 | 260 | < 0.0001 | 18 / 253, < 0.0001 |
+| raw 0.8B | B | test | 2,000 | 55 | 555 | < 0.0001 | 54 / 536, < 0.0001 |
+| raw 0.8B | B | test-clean | 1,625 | 39 | 504 | < 0.0001 | 39 / 488, < 0.0001 |
+| raw 0.8B | B | bfcl | 1,000 | 48 | 194 | < 0.0001 | - |
+| raw 2B | B | validation | 1,000 | 34 | 62 | 0.0056 | 34 / 52, 0.0662 |
+| raw 2B | B | test | 2,000 | 66 | 187 | < 0.0001 | 71 / 164, < 0.0001 |
+| raw 2B | B | test-clean | 1,625 | 52 | 159 | < 0.0001 | 57 / 139, < 0.0001 |
+| raw 2B | B | bfcl | 1,000 | 90 | 54 | 0.0034 | - |
+| A | B | validation | 1,000 | 158 | 19 | < 0.0001 | 134 / 19, < 0.0001 |
+| A | B | test | 2,000 | 322 | 51 | < 0.0001 | 282 / 41, < 0.0001 |
+| A | B | test-clean | 1,625 | 200 | 40 | < 0.0001 | 157 / 31, < 0.0001 |
+| A | B | bfcl | 1,000 | 100 | 46 | < 0.0001 | - |
+| raw 0.8B | Bf | validation | 1,000 | 20 | 320 | < 0.0001 | 22 / 313, < 0.0001 |
+| raw 0.8B | Bf | test | 2,000 | 49 | 620 | < 0.0001 | 45 / 610, < 0.0001 |
+| raw 0.8B | Bf | test-clean | 1,625 | 40 | 542 | < 0.0001 | 37 / 528, < 0.0001 |
+| raw 0.8B | Bf | bfcl | 1,000 | 51 | 214 | < 0.0001 | - |
+| raw 2B | Bf | validation | 1,000 | 34 | 120 | < 0.0001 | 35 / 109, < 0.0001 |
+| raw 2B | Bf | test | 2,000 | 74 | 266 | < 0.0001 | 72 / 248, < 0.0001 |
+| raw 2B | Bf | test-clean | 1,625 | 58 | 202 | < 0.0001 | 56 / 180, < 0.0001 |
+| raw 2B | Bf | bfcl | 1,000 | 96 | 77 | 0.1710 | - |
+| A | Bf | validation | 1,000 | 102 | 21 | < 0.0001 | 81 / 22, < 0.0001 |
+| A | Bf | test | 2,000 | 245 | 45 | < 0.0001 | 197 / 39, < 0.0001 |
+| A | Bf | test-clean | 1,625 | 156 | 33 | < 0.0001 | 111 / 27, < 0.0001 |
+| A | Bf | bfcl | 1,000 | 82 | 45 | 0.0013 | - |
+| B | Bf | validation | 1,000 | 27 | 85 | < 0.0001 | 24 / 80, < 0.0001 |
+| B | Bf | test | 2,000 | 85 | 156 | < 0.0001 | 75 / 158, < 0.0001 |
+| B | Bf | test-clean | 1,625 | 70 | 107 | 0.0066 | 61 / 103, 0.0013 |
+| B | Bf | bfcl | 1,000 | 62 | 79 | 0.1776 | - |
+| raw 0.8B | D | validation | 1,000 | 20 | 260 | < 0.0001 | 21 / 256, < 0.0001 |
+| raw 0.8B | D | test | 2,000 | 52 | 539 | < 0.0001 | 45 / 547, < 0.0001 |
+| raw 0.8B | D | test-clean | 1,625 | 36 | 499 | < 0.0001 | 29 / 502, < 0.0001 |
+| raw 0.8B | D | bfcl | 1,000 | 35 | 215 | < 0.0001 | - |
+| raw 2B | D | validation | 1,000 | 34 | 60 | 0.0095 | 37 / 55, 0.0758 |
+| raw 2B | D | test | 2,000 | 51 | 159 | < 0.0001 | 49 / 162, < 0.0001 |
+| raw 2B | D | test-clean | 1,625 | 33 | 138 | < 0.0001 | 32 / 138, < 0.0001 |
+| raw 2B | D | bfcl | 1,000 | 62 | 60 | 0.9279 | - |
+| A | D | validation | 1,000 | 162 | 21 | < 0.0001 | 135 / 20, < 0.0001 |
+| A | D | test | 2,000 | 330 | 46 | < 0.0001 | 263 / 42, < 0.0001 |
+| A | D | test-clean | 1,625 | 200 | 38 | < 0.0001 | 135 / 33, < 0.0001 |
+| A | D | bfcl | 1,000 | 80 | 60 | 0.1080 | - |
+| B | D | validation | 1,000 | 39 | 37 | 0.9088 | 34 / 34, 1.0000 |
+| B | D | test | 2,000 | 85 | 72 | 0.3382 | 62 / 82, 0.1130 |
+| B | D | test-clean | 1,625 | 62 | 60 | 0.9279 | 44 / 68, 0.0293 |
+| B | D | bfcl | 1,000 | 28 | 62 | 0.0004 | - |
+| Bf | D | validation | 1,000 | 91 | 31 | < 0.0001 | 85 / 29, < 0.0001 |
+| Bf | D | test | 2,000 | 156 | 72 | < 0.0001 | 137 / 74, < 0.0001 |
+| Bf | D | test-clean | 1,625 | 102 | 63 | 0.0030 | 80 / 62, 0.1534 |
+| Bf | D | bfcl | 1,000 | 55 | 72 | 0.1554 | - |
+| B→D | D | validation | 1,000 | 30 | 32 | 0.8991 | 32 / 28, 0.6989 |
+| B→D | D | test | 2,000 | 49 | 63 | 0.2191 | 47 / 66, 0.0900 |
+| B→D | D | test-clean | 1,625 | 28 | 54 | 0.0054 | 26 / 54, 0.0023 |
+| B→D | D | bfcl | 1,000 | 24 | 60 | 0.0001 | - |
+| raw 0.8B | B→D | validation | 1,000 | 22 | 260 | < 0.0001 | 21 / 260, < 0.0001 |
+| raw 0.8B | B→D | test | 2,000 | 51 | 524 | < 0.0001 | 52 / 535, < 0.0001 |
+| raw 0.8B | B→D | test-clean | 1,625 | 38 | 475 | < 0.0001 | 40 / 485, < 0.0001 |
+| raw 0.8B | B→D | bfcl | 1,000 | 58 | 202 | < 0.0001 | - |
+| raw 2B | B→D | validation | 1,000 | 29 | 53 | 0.0106 | 28 / 50, 0.0169 |
+| raw 2B | B→D | test | 2,000 | 60 | 154 | < 0.0001 | 67 / 161, < 0.0001 |
+| raw 2B | B→D | test-clean | 1,625 | 47 | 126 | < 0.0001 | 53 / 131, < 0.0001 |
+| raw 2B | B→D | bfcl | 1,000 | 92 | 54 | 0.0021 | - |
+| A | B→D | validation | 1,000 | 162 | 19 | < 0.0001 | 132 / 21, < 0.0001 |
+| A | B→D | test | 2,000 | 345 | 47 | < 0.0001 | 283 / 43, < 0.0001 |
+| A | B→D | test-clean | 1,625 | 223 | 35 | < 0.0001 | 159 / 29, < 0.0001 |
+| A | B→D | bfcl | 1,000 | 113 | 57 | < 0.0001 | - |
+| B | B→D | validation | 1,000 | 30 | 26 | 0.6889 | 23 / 27, 0.6718 |
+| B | B→D | test | 2,000 | 80 | 53 | 0.0238 | 55 / 56, 1.0000 |
+| B | B→D | test-clean | 1,625 | 70 | 42 | 0.0104 | 47 / 43, 0.7520 |
+| B | B→D | bfcl | 1,000 | 42 | 40 | 0.9122 | - |
+| Bf | B→D | validation | 1,000 | 90 | 28 | < 0.0001 | 83 / 31, < 0.0001 |
+| Bf | B→D | test | 2,000 | 172 | 74 | < 0.0001 | 158 / 76, < 0.0001 |
+| Bf | B→D | test-clean | 1,625 | 123 | 58 | < 0.0001 | 104 / 58, 0.0004 |
+| Bf | B→D | bfcl | 1,000 | 79 | 60 | 0.1265 | - |
 
 ## Teacher outputs (method B)
 

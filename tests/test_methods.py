@@ -191,3 +191,65 @@ def test_a_pipeline_counts_the_gpu_hours_of_the_checkpoint_it_continues(
     assert pipeline["selected"] == 400
     assert "B→D" not in data["at_b_budget"]
     assert "**B→D**, B then on-policy distillation (step 400)" in render(data)
+
+
+def _scored(ids: range, exact: set[int], lenient: set[int]) -> list[dict[str, Any]]:
+    return [
+        {"id": i, "parse_ok": True, "exact": i in exact, "lenient_exact": i in lenient} for i in ids
+    ]
+
+
+def test_claims_are_reported_under_strict_lenient_and_without_the_default_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    splits = tmp_path / "splits.json"
+    splits.write_text(json.dumps({"test-clean": [0, 1, 2, 3]}))
+    # The audit calls row 0 sound, but its gold writes out an optional argument at its default.
+    audit = tmp_path / "test_labels.csv"
+    audit.write_text("id,verdict,category\n0,label_sound,default made explicit\n1,label_sound,\n")
+    val = range(10)
+    _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-0.8B", _rows(val, {0}), {})
+    _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-2B", _rows(val, set(range(5))), {})
+    by_key = {m.key: m for m in METHODS}
+    for key, step in (("B", 1000), ("D", 1000)):
+        _write_run(
+            tmp_path / f"eval-validation-{by_key[key].train_run}-checkpoint-{step}",
+            _rows(val, set(range(6))),
+            {"adapter": {"gpu_hours": 5.0}},
+        )
+    test = range(6)
+    # B is right on 0-2. D misses row 0 strictly (it left the default out) but is lenient-right
+    # there, and is right on 1, 2 and 4.
+    _write_run(
+        tmp_path / f"eval-test-{by_key['B'].train_run}-checkpoint-1000",
+        _scored(test, {0, 1, 2}, {0, 1, 2}),
+        {},
+    )
+    _write_run(
+        tmp_path / f"eval-test-{by_key['D'].train_run}-checkpoint-1000",
+        _scored(test, {1, 2, 4}, {0, 1, 2, 4}),
+        {},
+    )
+    monkeypatch.setattr(methods, "load_split", lambda split, path: [])
+
+    data = build(tmp_path, splits, audit)
+
+    claim = next(
+        c for c in data["claims"] if (c["a"], c["b"], c["eval"]) == ("D", "B", "test-clean")
+    )
+    assert (claim["only_a_right"], claim["only_b_right"]) == (0, 1)
+    assert (claim["lenient"]["only_a_right"], claim["lenient"]["only_b_right"]) == (0, 0)
+    assert (claim["without_defaults"]["n"], claim["without_defaults"]["only_b_right"]) == (3, 0)
+    assert claim["holm_p"] >= claim["p"]
+    pair = next(c for c in data["mcnemar"] if (c["a"], c["b"], c["eval"]) == ("B", "D", "test"))
+    assert (pair["lenient"]["only_a_right"], pair["lenient"]["only_b_right"]) == (0, 1)
+    assert data["defaults"]["D"] == {
+        "rows": 1,
+        "default_made_explicit": 0.0,
+        "rest": round(2 / 3, 4),
+    }
+    # Claims whose runs don't exist here are listed, not silently dropped from Holm's family.
+    assert "A vs B, test-clean" in data["claims_missing"]
+    md = render(data)
+    assert "## README claims" in md
+    assert "## Default made explicit" in md
