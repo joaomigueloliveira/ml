@@ -113,11 +113,13 @@ Training cost (#36): one epoch of LoRA SFT over the full train split takes about
 RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the
 padding. The settings and the sweeps behind them: [`results/sft-cost.md`](results/sft-cost.md).
 
-Serving cost (#63): in vLLM on the same card, the raw 0.8B answers the 1,625 test-clean prompts at
-46.7 GPU-seconds per 1,000 requests and the 2B at 89.3, each at its best cap on concurrent requests:
-**1.9× cheaper, just short of the 2× criterion** (#2). One request at a time, the median latency is
-0.27 s against 0.64 s. Every method's model is the 0.8B with a LoRA merged in, so the figure holds
-for each of them. Settings and every run: [`results/serving.md`](results/serving.md).
+Serving cost (#63): in vLLM on the same card, with every test-clean prompt submitted at once, the
+raw 0.8B costs 46.7 GPU-seconds per 1,000 requests and the 2B 89.3, each at its best cap on
+concurrent requests: **1.9× cheaper, just short of the 2× criterion** (#2), with vLLM's default
+scheduler. One request at a time it is 2.4× faster (median latency 0.27 s against 0.64 s); batching
+narrows the gap because the prompts are long and the answers short. Every method's model is the
+0.8B with a LoRA merged in, so this should hold for each of them if its answers are as long; the
+final student is re-run as a check. Settings and every run: [`results/serving.md`](results/serving.md).
 
 Training curves and eval runs, the baselines included, are logged to the public W&B project
 [joaomigueloliveira30/qwen-function-calling-distillation](https://forge.coreweave.com/wandb/joaomigueloliveira30/qwen-function-calling-distillation).

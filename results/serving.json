@@ -8,46 +8,70 @@
           "max_num_seqs": 16,
           "requests_per_s": 16.87,
           "output_tokens_per_s": 860.1,
+          "input_tokens_per_request": 508.9,
           "output_tokens_per_request": 51.0,
           "gpu_seconds_per_1k": 59.28,
+          "latency_rows": 50,
+          "latency_total": 15.72,
           "latency_p50": 0.28,
           "latency_p90": 0.591,
           "weights_gib": 1.43,
-          "kv_cache_tokens": 372443
+          "kv_cache_tokens": 372443,
+          "model_revision": "2fc06364715b967f1860aea9cf38778875588b17",
+          "vllm": "0.33.0",
+          "commit": "5aedd0de0161d1c39bc09a6b440db20192ab5984"
         },
         {
           "max_num_seqs": 64,
           "requests_per_s": 20.93,
           "output_tokens_per_s": 1080.4,
+          "input_tokens_per_request": 508.9,
           "output_tokens_per_request": 51.6,
           "gpu_seconds_per_1k": 47.77,
+          "latency_rows": 50,
+          "latency_total": 15.21,
           "latency_p50": 0.273,
           "latency_p90": 0.554,
           "weights_gib": 1.43,
-          "kv_cache_tokens": 360155
+          "kv_cache_tokens": 360155,
+          "model_revision": "2fc06364715b967f1860aea9cf38778875588b17",
+          "vllm": "0.33.0",
+          "commit": "5aedd0de0161d1c39bc09a6b440db20192ab5984"
         },
         {
           "max_num_seqs": 256,
           "requests_per_s": 21.4,
           "output_tokens_per_s": 1087.6,
+          "input_tokens_per_request": 508.9,
           "output_tokens_per_request": 50.8,
           "gpu_seconds_per_1k": 46.74,
+          "latency_rows": 50,
+          "latency_total": 15.53,
           "latency_p50": 0.274,
           "latency_p90": 0.581,
           "weights_gib": 1.43,
-          "kv_cache_tokens": 346989
+          "kv_cache_tokens": 346989,
+          "model_revision": "2fc06364715b967f1860aea9cf38778875588b17",
+          "vllm": "0.33.0",
+          "commit": "5aedd0de0161d1c39bc09a6b440db20192ab5984"
         }
       ],
       "best": {
         "max_num_seqs": 256,
         "requests_per_s": 21.4,
         "output_tokens_per_s": 1087.6,
+        "input_tokens_per_request": 508.9,
         "output_tokens_per_request": 50.8,
         "gpu_seconds_per_1k": 46.74,
+        "latency_rows": 50,
+        "latency_total": 15.53,
         "latency_p50": 0.274,
         "latency_p90": 0.581,
         "weights_gib": 1.43,
-        "kv_cache_tokens": 346989
+        "kv_cache_tokens": 346989,
+        "model_revision": "2fc06364715b967f1860aea9cf38778875588b17",
+        "vllm": "0.33.0",
+        "commit": "5aedd0de0161d1c39bc09a6b440db20192ab5984"
       }
     },
     "Qwen/Qwen3.5-2B": {
@@ -56,49 +80,75 @@
           "max_num_seqs": 16,
           "requests_per_s": 8.22,
           "output_tokens_per_s": 429.4,
+          "input_tokens_per_request": 508.9,
           "output_tokens_per_request": 52.2,
           "gpu_seconds_per_1k": 121.59,
+          "latency_rows": 50,
+          "latency_total": 37.09,
           "latency_p50": 0.643,
           "latency_p90": 1.223,
           "weights_gib": 3.56,
-          "kv_cache_tokens": 238153
+          "kv_cache_tokens": 238153,
+          "model_revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+          "vllm": "0.33.0",
+          "commit": "5aedd0de0161d1c39bc09a6b440db20192ab5984"
         },
         {
           "max_num_seqs": 64,
           "requests_per_s": 10.86,
           "output_tokens_per_s": 565.4,
+          "input_tokens_per_request": 508.9,
           "output_tokens_per_request": 52.0,
           "gpu_seconds_per_1k": 92.04,
+          "latency_rows": 50,
+          "latency_total": 37.53,
           "latency_p50": 0.661,
           "latency_p90": 1.224,
           "weights_gib": 3.56,
-          "kv_cache_tokens": 231424
+          "kv_cache_tokens": 231424,
+          "model_revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+          "vllm": "0.33.0",
+          "commit": "5aedd0de0161d1c39bc09a6b440db20192ab5984"
         },
         {
           "max_num_seqs": 256,
           "requests_per_s": 11.2,
           "output_tokens_per_s": 585.1,
+          "input_tokens_per_request": 508.9,
           "output_tokens_per_request": 52.3,
           "gpu_seconds_per_1k": 89.32,
+          "latency_rows": 50,
+          "latency_total": 37.13,
           "latency_p50": 0.644,
           "latency_p90": 1.226,
           "weights_gib": 3.56,
-          "kv_cache_tokens": 241078
+          "kv_cache_tokens": 241078,
+          "model_revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+          "vllm": "0.33.0",
+          "commit": "5aedd0de0161d1c39bc09a6b440db20192ab5984"
         }
       ],
       "best": {
         "max_num_seqs": 256,
         "requests_per_s": 11.2,
         "output_tokens_per_s": 585.1,
+        "input_tokens_per_request": 508.9,
         "output_tokens_per_request": 52.3,
         "gpu_seconds_per_1k": 89.32,
+        "latency_rows": 50,
+        "latency_total": 37.13,
         "latency_p50": 0.644,
         "latency_p90": 1.226,
         "weights_gib": 3.56,
-        "kv_cache_tokens": 241078
+        "kv_cache_tokens": 241078,
+        "model_revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+        "vllm": "0.33.0",
+        "commit": "5aedd0de0161d1c39bc09a6b440db20192ab5984"
       }
     }
   },
   "speedup": 1.91,
-  "clears_2x": false
+  "clears_2x": false,
+  "latency_speedup": 2.39,
+  "per_token_speedup": 1.86
 }

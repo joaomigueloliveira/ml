@@ -19,16 +19,22 @@ def test_read_memory_leaves_out_what_the_log_doesnt_say() -> None:
     assert read_memory("nothing here") == {"weights_gib": None, "kv_cache_tokens": None}
 
 
-def _run(model: str, cap: int, seconds: float) -> dict[str, Any]:
+def _run(
+    model: str, cap: int, seconds: float, latency: tuple[float, ...] = (0.4, 0.5, 0.6, 0.5, 0.9)
+) -> dict[str, Any]:
     return {
         "model": model,
+        "model_revision": "abc",
         "max_num_seqs": cap,
         "requests": 1000,
         "seconds": seconds,
+        "input_tokens": 500_000,
         "output_tokens": 50_000,
-        "latency_seconds": [0.4, 0.5, 0.6, 0.5, 0.9],
+        "latency_seconds": list(latency),
         "weights_gib": 1.43,
         "kv_cache_tokens": 362496,
+        "vllm": "0.33.0",
+        "git": {"commit": "f00", "dirty": False},
     }
 
 
@@ -45,8 +51,33 @@ def test_report_compares_each_model_at_its_cheapest_setting() -> None:
     assert (student["best"]["max_num_seqs"], student["best"]["gpu_seconds_per_1k"]) == (256, 20.0)
     assert student["best"]["requests_per_s"] == 50.0
     assert student["best"]["latency_p50"] == 0.5
+    # Five latencies: p90 is the largest.
+    assert student["best"]["latency_p90"] == 0.9
     assert data["speedup"] == pytest.approx(2.5)
     assert data["clears_2x"] is True
     md = render(data)
     assert "2.5x cheaper" in md
     assert "| Qwen/Qwen3.5-2B | 16 |" in md
+
+
+def test_report_gives_the_ratio_one_request_at_a_time_and_per_output_token() -> None:
+    runs = [
+        _run("Qwen/Qwen3.5-0.8B", 256, 20.0, latency=(0.2, 0.3)),
+        _run("Qwen/Qwen3.5-2B", 256, 36.0, latency=(0.5, 0.75)),
+    ]
+    runs[1]["output_tokens"] = 54_000
+    data = report(runs)
+    # Batched: 36 / 20 = 1.8, which misses 2x. One at a time over the same prompts: 1.25 / 0.5.
+    assert (data["speedup"], data["clears_2x"]) == (1.8, False)
+    assert data["latency_speedup"] == 2.5
+    # Per output token: 2,500 tokens/s against 1,500.
+    assert data["per_token_speedup"] == pytest.approx(1.67)
+    md = render(data)
+    assert "misses" in md
+    assert "2.5x" in md
+
+
+def test_report_without_the_teacher_gives_no_verdict() -> None:
+    data = report([_run("Qwen/Qwen3.5-0.8B", 256, 20.0)])
+    assert (data["speedup"], data["clears_2x"]) == (None, None)
+    assert "cheaper" not in render(data)
