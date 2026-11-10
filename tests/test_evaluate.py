@@ -122,7 +122,7 @@ def test_each_checkpoint_of_a_training_run_gets_its_own_eval_run() -> None:
 def test_adapter_check_refuses_an_adapter_that_changed_too_few_outputs() -> None:
     base = ["same"] * 32
     texts = ["other"] * 6 + ["same"] * 26  # 6 of 32 changed, under the default 25%
-    with pytest.raises(RuntimeError, match="changed 6 of the first 32"):
+    with pytest.raises(RuntimeError, match="changed 6 of 32 check rows"):
         evaluate.adapter_check(base, texts, evaluate.ADAPTER_MIN_CHANGED)
 
 
@@ -136,3 +136,13 @@ def test_adapter_check_with_a_lower_threshold_passes_and_records_what_it_saw() -
         "changed": 6,
         "min_changed": 0.15,
     }
+
+
+def test_check_rows_are_a_fixed_sample_spread_over_the_split() -> None:
+    # The first rows of BFCL are all "simple" ones the raw model already gets right (#71), so the
+    # adapter-load check samples rows from the whole split instead, the same rows on every run.
+    rows = evaluate.check_rows(1000)
+    assert rows == evaluate.check_rows(1000)
+    assert len(rows) == evaluate.ADAPTER_CHECK_ROWS == len(set(rows))
+    assert max(rows) > 500
+    assert evaluate.check_rows(10) == list(range(10))
