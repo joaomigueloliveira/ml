@@ -148,18 +148,23 @@ def render(data: Mapping[str, Any]) -> str:
 
 
 @contextmanager
-def _stderr_to(path: Path) -> Iterator[None]:
-    """Send this process's stderr, and its children's (vLLM's engine core), to a file."""
+def _output_to(path: Path) -> Iterator[None]:
+    """Send this process's stdout and stderr, and its children's (vLLM's engine core, which logs
+    to stdout), to a file."""
+    sys.stdout.flush()
     sys.stderr.flush()
-    saved = os.dup(2)
+    saved = [os.dup(1), os.dup(2)]
     with path.open("w") as f:
+        os.dup2(f.fileno(), 1)
         os.dup2(f.fileno(), 2)
         try:
             yield
         finally:
+            sys.stdout.flush()
             sys.stderr.flush()
-            os.dup2(saved, 2)
-            os.close(saved)
+            for fd, copy in zip((1, 2), saved, strict=True):
+                os.dup2(copy, fd)
+                os.close(copy)
 
 
 def measure(model: str, max_num_seqs: int, n: int | None, latency_rows: int, out: Path) -> None:
@@ -171,7 +176,7 @@ def measure(model: str, max_num_seqs: int, n: int | None, latency_rows: int, out
     prompts = [to_messages(r) for r in load_split("test-clean")][:n]
     params = SamplingParams(temperature=0.0, max_tokens=MAX_TOKENS)
     log = out / "vllm.log"
-    with _stderr_to(log):
+    with _output_to(log):
         llm = LLM(
             model=model,
             max_model_len=MAX_MODEL_LEN,
