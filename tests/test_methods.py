@@ -274,7 +274,7 @@ def test_teacher_counts_keep_grounded_outputs_without_looking_at_gold() -> None:
     assert (grounded["kept"], grounded["exact"]) == (1, 0.0)
 
 
-def _said(ids: range, calls: dict[int, str], right: set[int]) -> list[dict[str, Any]]:
+def _bfcl_rows(ids: range, calls: dict[int, str], right: set[int]) -> list[dict[str, Any]]:
     return [
         {"id": i, "parse_ok": True, "exact": i in right, "prediction": calls.get(i, "no call")}
         for i in ids
@@ -296,7 +296,7 @@ def test_bfcl_along_the_run_scores_each_checkpoint_and_its_agreement_with_the_2b
     teacher = {0: porto, 1: porto, 2: porto}
     _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-0.8B", _rows(val, {0}), {})
     _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-2B", _rows(val, set(range(5))), {})
-    _write_run(tmp_path / "eval-bfcl-Qwen_Qwen3.5-2B", _said(bfcl, teacher, {0, 1}), {})
+    _write_run(tmp_path / "eval-bfcl-Qwen_Qwen3.5-2B", _bfcl_rows(bfcl, teacher, {0, 1}), {})
     run = next(m for m in METHODS if m.key == "B").train_run
     for step in (500, 1000, 1500):
         _write_run(
@@ -305,21 +305,28 @@ def test_bfcl_along_the_run_scores_each_checkpoint_and_its_agreement_with_the_2b
             {"adapter": {"gpu_hours": step / 1000}},
         )
     # Step 500: agrees with the 2B on row 0 only. Step 1500: on rows 0-2. Step 1000 has no run.
-    _write_run(tmp_path / f"eval-bfcl-{run}-checkpoint-500", _said(bfcl, {0: porto}, {0}), {})
+    _write_run(tmp_path / f"eval-bfcl-{run}-checkpoint-500", _bfcl_rows(bfcl, {0: porto}, {0}), {})
     _write_run(
         tmp_path / f"eval-bfcl-{run}-checkpoint-1500",
-        _said(bfcl, {0: porto, 1: porto_again, 2: porto, 3: lisbon}, {0, 1, 3}),
+        _bfcl_rows(bfcl, {0: porto, 1: porto_again, 2: porto, 3: lisbon}, {0, 1, 3}),
         {},
     )
     monkeypatch.setattr(methods, "load_split", lambda split, path: [])
 
     data = build(tmp_path, splits, audit)
 
-    along = {c["step"]: c for c in data["methods"]["B"]["checkpoints"]}
-    assert (along[500]["bfcl"], along[500]["bfcl_agree_2b"]) == (0.25, 0.25)
-    assert (along[1500]["bfcl"], along[1500]["bfcl_agree_2b"]) == (0.75, 0.75)
-    assert along[1000]["bfcl"] is None
+    along = {c["step"]: c["bfcl"] for c in data["methods"]["B"]["checkpoints"]}
+    # The 2B is wrong on row 2 with a parsed answer (its only copyable error); row 3 doesn't parse.
+    assert (along[500]["exact"], along[500]["agrees_with_teacher"]) == (0.25, 0.25)
+    assert (along[500]["copies_teacher_errors"], along[500]["teacher_errors"]) == (0, 1)
+    assert (along[1500]["exact"], along[1500]["agrees_with_teacher"]) == (0.75, 0.75)
+    assert along[1500]["copies_teacher_errors"] == 1
+    assert along[1000] is None
     md = render(data)
-    assert "## BFCL along the run" in md
+    section = md[md.index("## BFCL along the run") : md.index("## Paired comparisons")]
+    assert "| 1500 | 1.50 |" in section
+    assert "| 75.0 | 1 / 1 |" in section
+    assert "| **1000** | 1.00 |" in section
+    assert "| - | - | - |" in section
     # Explanation only: the selected checkpoint is still validation's best.
     assert data["methods"]["B"]["selected"] == 1000
