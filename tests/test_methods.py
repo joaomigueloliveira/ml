@@ -272,3 +272,54 @@ def test_teacher_counts_keep_grounded_outputs_without_looking_at_gold() -> None:
     grounded = teacher_counts(records, examples)["variants"]["grounded"]
     # Kept on row 2 although it's wrong: the rule never reads gold.
     assert (grounded["kept"], grounded["exact"]) == (1, 0.0)
+
+
+def _said(ids: range, calls: dict[int, str], right: set[int]) -> list[dict[str, Any]]:
+    return [
+        {"id": i, "parse_ok": True, "exact": i in right, "prediction": calls.get(i, "no call")}
+        for i in ids
+    ]
+
+
+def test_bfcl_along_the_run_scores_each_checkpoint_and_its_agreement_with_the_2b(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    splits = tmp_path / "splits.json"
+    splits.write_text(json.dumps({"test-clean": []}))
+    audit = tmp_path / "test_labels.csv"
+    audit.write_text("id,verdict,category\n")
+    val, bfcl = range(10), range(4)
+    porto = '[{"name": "weather", "arguments": {"city": "Porto"}}]'
+    # The same call with its arguments reordered agrees; a different value doesn't.
+    porto_again = '[{"arguments": {"city": "Porto"}, "name": "weather"}]'
+    lisbon = '[{"name": "weather", "arguments": {"city": "Lisbon"}}]'
+    teacher = {0: porto, 1: porto, 2: porto}
+    _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-0.8B", _rows(val, {0}), {})
+    _write_run(tmp_path / "eval-validation-Qwen_Qwen3.5-2B", _rows(val, set(range(5))), {})
+    _write_run(tmp_path / "eval-bfcl-Qwen_Qwen3.5-2B", _said(bfcl, teacher, {0, 1}), {})
+    run = next(m for m in METHODS if m.key == "B").train_run
+    for step in (500, 1000, 1500):
+        _write_run(
+            tmp_path / f"eval-validation-{run}-checkpoint-{step}",
+            _rows(val, set(range(7 if step == 1000 else 5))),
+            {"adapter": {"gpu_hours": step / 1000}},
+        )
+    # Step 500: agrees with the 2B on row 0 only. Step 1500: on rows 0-2. Step 1000 has no run.
+    _write_run(tmp_path / f"eval-bfcl-{run}-checkpoint-500", _said(bfcl, {0: porto}, {0}), {})
+    _write_run(
+        tmp_path / f"eval-bfcl-{run}-checkpoint-1500",
+        _said(bfcl, {0: porto, 1: porto_again, 2: porto, 3: lisbon}, {0, 1, 3}),
+        {},
+    )
+    monkeypatch.setattr(methods, "load_split", lambda split, path: [])
+
+    data = build(tmp_path, splits, audit)
+
+    along = {c["step"]: c for c in data["methods"]["B"]["checkpoints"]}
+    assert (along[500]["bfcl"], along[500]["bfcl_agree_2b"]) == (0.25, 0.25)
+    assert (along[1500]["bfcl"], along[1500]["bfcl_agree_2b"]) == (0.75, 0.75)
+    assert along[1000]["bfcl"] is None
+    md = render(data)
+    assert "## BFCL along the run" in md
+    # Explanation only: the selected checkpoint is still validation's best.
+    assert data["methods"]["B"]["selected"] == 1000

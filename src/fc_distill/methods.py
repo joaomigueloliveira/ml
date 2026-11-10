@@ -26,7 +26,7 @@ from typing import Any, NamedTuple
 
 from fc_distill.data import DEFAULT_SPLITS_PATH, Example, load_split
 from fc_distill.evaluate import read_run
-from fc_distill.scoring import parse_calls, validity
+from fc_distill.scoring import call_multiset, parse_calls, validity
 from fc_distill.slices import argument_source, grounded
 from fc_distill.stats import holm, mcnemar, metric_block
 
@@ -184,6 +184,25 @@ def _paired(
     return mcnemar([a[i] for i in order], [b[i] for i in order])
 
 
+def _calls(records: Sequence[Mapping[str, Any]]) -> dict[Any, Any]:
+    """Each row's calls in the form exact compares, or None where the output doesn't parse."""
+    out: dict[Any, Any] = {}
+    for r in records:
+        calls = parse_calls(r["prediction"])
+        try:
+            out[r["id"]] = None if calls is None else call_multiset(calls)
+        except TypeError:  # an unhashable argument value
+            out[r["id"]] = None
+    return out
+
+
+def _agreement(records: Sequence[Mapping[str, Any]], teacher: Mapping[Any, Any]) -> float:
+    """Share of rows where the output makes the same calls as the 2B's (#70), both parsed."""
+    mine = _calls(records)
+    same = sum(c is not None and c == teacher.get(i) for i, c in mine.items())
+    return round(float(same) / len(mine), 4)
+
+
 def build(
     runs: Path, splits_path: Path = DEFAULT_SPLITS_PATH, audit_path: Path = DEFAULT_AUDIT
 ) -> dict[str, Any]:
@@ -215,6 +234,10 @@ def build(
             if records is not None:
                 official_baselines[label][split] = keep(model, split, records)
 
+    teacher_bfcl = runs / _eval_dir("bfcl", TEACHER)
+    teacher_calls = (
+        _calls(read_run(teacher_bfcl)[1]) if (teacher_bfcl / "summary.json").exists() else None
+    )
     methods: dict[str, Any] = {}
     for m in METHODS:
         start = 0.0
@@ -233,9 +256,20 @@ def build(
             summary, records = read_run(path)
             step = int(match.group(1))
             block = keep(f"{m.key}@{step}", "validation", records)
+            # BFCL at every checkpoint scored there: explanation only, never selection (#70).
+            bfcl = _records(
+                runs, _eval_dir("bfcl", f"{m.train_run}-checkpoint-{step}"), "bfcl", clean
+            )
             checkpoints.append(
                 {"step": step, "gpu_hours": round(start + summary["adapter"]["gpu_hours"], 3)}
                 | block
+                | {
+                    "bfcl": None if bfcl is None else metric_block(bfcl, ("exact",))["exact"],
+                    "bfcl_ci": None if bfcl is None else metric_block(bfcl, ("exact",))["exact_ci"],
+                    "bfcl_agree_2b": None
+                    if bfcl is None or teacher_calls is None
+                    else _agreement(bfcl, teacher_calls),
+                }
             )
         if not checkpoints:
             continue
@@ -593,6 +627,35 @@ def render(data: Mapping[str, Any]) -> str:
             f"Selected: step {m['selected']}. Inside its interval (statistically tied): {tied}.",
             "",
         ]
+    along = {
+        k: m for k, m in methods.items() if sum(c["bfcl"] is not None for c in m["checkpoints"]) > 1
+    }
+    if along:
+        out += [
+            "## BFCL along the run",
+            "",
+            "Explanation only (#70): these scores never choose a checkpoint or a method, and the "
+            "selected checkpoints (in bold) keep their official numbers. Agreement with the 2B is "
+            "the share of BFCL rows where the checkpoint makes the same calls as the raw 2B, both "
+            "parsed.",
+            "",
+        ]
+        for key, m in along.items():
+            out += [f"### {key}, {m['name']}", ""]
+            out += _table(
+                ["Step", "GPU-h", "Validation exact", "BFCL exact", "Agrees with the 2B on BFCL"],
+                [
+                    [
+                        f"**{c['step']}**" if c["step"] == m["selected"] else str(c["step"]),
+                        f"{c['gpu_hours']:.2f}",
+                        _pct(c),
+                        _pct(c, "bfcl"),
+                        "-" if c["bfcl_agree_2b"] is None else f"{100 * c['bfcl_agree_2b']:.1f}",
+                    ]
+                    for c in m["checkpoints"]
+                ],
+            )
+            out += [""]
     out += ["## Paired comparisons", "", "Exact McNemar test on strict exact, row by row.", ""]
     out += _table(
         [
