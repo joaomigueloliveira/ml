@@ -54,6 +54,10 @@ from fc_distill.tracking import GPU_HOURS, data_provenance, git_state, hub_revis
 # "train" is for teacher outputs (method B, ADR 0006): the run's predictions.jsonl is what fc-sft
 # --targets teacher trains on. Its scores against gold are a by-product, never a result.
 SPLITS = (*get_args(EvalSplit), "bfcl", "train")
+# Engine and decoding defaults, shared with fc-serve so the served model is the evaluated one.
+MAX_MODEL_LEN = 4096
+MAX_TOKENS = 1024
+GPU_MEM = 0.85
 # Rows generated again without the adapter, to check it changed something: a fixed seeded sample
 # from the whole split. The first rows were used until #71, but BFCL's are all simple ones the raw
 # model already gets right, which a trained adapter rarely changes.
@@ -124,10 +128,10 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--split", choices=SPLITS, default="validation")
     ap.add_argument("--n", type=int, default=None, help="first n examples (default: all)")
     ap.add_argument("--out", type=Path, default=None, help="default: runs/eval-<model>")
-    ap.add_argument("--max-model-len", type=int, default=4096)
+    ap.add_argument("--max-model-len", type=int, default=MAX_MODEL_LEN)
     # The longest validation/test gold answer is 521 tokens (notebooks/01_dataset.ipynb, section 4).
-    ap.add_argument("--max-tokens", type=int, default=1024)
-    ap.add_argument("--gpu-mem", type=float, default=0.85, help="vLLM gpu_memory_utilization")
+    ap.add_argument("--max-tokens", type=int, default=MAX_TOKENS)
+    ap.add_argument("--gpu-mem", type=float, default=GPU_MEM, help="vLLM gpu_memory_utilization")
     ap.add_argument("--quantization", default=None)
     ap.add_argument(
         "--max-num-seqs", type=int, default=None, help="cap concurrent sequences (big models)"

@@ -113,6 +113,14 @@ Training cost (#36): one epoch of LoRA SFT over the full train split takes about
 RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the
 padding. The settings and the sweeps behind them: [`results/sft-cost.md`](results/sft-cost.md).
 
+Serving cost (#63): in vLLM on the same card, **the 0.8B answers 2.4× faster than the 2B one
+request at a time** (median latency 0.27 s against 0.64 s), **and serves 1.9× cheaper with every
+test-clean prompt batched** (46.7 against 89.3 GPU-seconds per 1,000 requests, each at its best cap
+on concurrent requests, vLLM's default scheduler). Batching narrows the gap because the prompts are
+long and the answers short. Every method's model is the
+0.8B with a LoRA merged in, so this should hold for each of them if its answers are as long; the
+final student is re-run as a check. Settings and every run: [`results/serving.md`](results/serving.md).
+
 Training curves and eval runs, the baselines included, are logged to the public W&B project
 [joaomigueloliveira30/qwen-function-calling-distillation](https://forge.coreweave.com/wandb/joaomigueloliveira30/qwen-function-calling-distillation).
 `results/` stays the source of truth; W&B mirrors it.
@@ -150,6 +158,8 @@ uv run fc-eval --model Qwen/Qwen3.5-0.8B --split bfcl         # unseen tools
 uv run fc-eval --rescore runs/eval-test-Qwen_Qwen3.5-0.8B       # re-score a saved run, no GPU
 uv run fc-report                  # results/baselines.{json,md} from the test and BFCL runs
 uv run --no-sync fc-report --methods   # results/methods.{json,md}: each method's checkpoints
+uv run fc-serve --model Qwen/Qwen3.5-0.8B --max-num-seqs 256   # serving cost -> runs/serve-*
+uv run --no-sync fc-serve --report     # results/serving.{json,md}: the 0.8B against the 2B
 
 uv sync --extra inference --extra train   # + TRL, PEFT, flash-linear-attention
 uv run --no-sync fc-sft --n-rows 1000     # method A: LoRA SFT on gold labels -> runs/train-sft-gold-*
@@ -207,13 +217,14 @@ src/fc_distill/
   methods.py    method results: checkpoint selection, official scores, teacher-output counts (fc-report --methods)
   sft.py        methods A and B: LoRA SFT on gold labels or teacher outputs, GPU-hour accounting (fc-sft)
   opd.py        method D: on-policy distillation with TRL's DistillationTrainer (fc-opd)
+  serving.py    serving cost in vLLM: throughput, latency, memory; student vs teacher (fc-serve)
   tracking.py   W&B tracking shared by trainers and evals; GPU-hour accounting, provenance
   eval_tracking.py  how eval results are laid out in W&B (flat keys, slices table)
 notebooks/      01_dataset.ipynb: the dataset story and the split
 tests/          unit tests (CPU only)
 data/           committed split ids and the audit labels
 docs/           dataset card, ADRs, the label-audit rubric, the BFCL and W&B notes
-results/        results worth keeping (label audit, baselines, methods)
+results/        results worth keeping (label audit, baselines, methods, serving)
 ```
 
 ## License
