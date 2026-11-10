@@ -31,6 +31,8 @@ to stay fair every method would need its own.
 **Checkpoint selection.** An adapter is saved every 500 steps and at the end. Every checkpoint is
 scored on validation with strict exact against gold, whatever the method trained on. The best one,
 with ties going to the earlier checkpoint, is the method's model on test, `test-clean` and BFCL.
+The rule stays as is despite validation's noise, and methods are compared on `test-clean`, not
+picked on validation (ADR 0009).
 
 **GPU-hours.** A method's cost is its optimizer-step time plus, for methods that use the teacher,
 the teacher's generation time. Validation scoring is reported separately as selection overhead:
