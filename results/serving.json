@@ -1,0 +1,104 @@
+{
+  "student": "Qwen/Qwen3.5-0.8B",
+  "teacher": "Qwen/Qwen3.5-2B",
+  "models": {
+    "Qwen/Qwen3.5-0.8B": {
+      "settings": [
+        {
+          "max_num_seqs": 16,
+          "requests_per_s": 16.87,
+          "output_tokens_per_s": 860.1,
+          "output_tokens_per_request": 51.0,
+          "gpu_seconds_per_1k": 59.28,
+          "latency_p50": 0.28,
+          "latency_p90": 0.591,
+          "weights_gib": 1.43,
+          "kv_cache_tokens": 372443
+        },
+        {
+          "max_num_seqs": 64,
+          "requests_per_s": 20.93,
+          "output_tokens_per_s": 1080.4,
+          "output_tokens_per_request": 51.6,
+          "gpu_seconds_per_1k": 47.77,
+          "latency_p50": 0.273,
+          "latency_p90": 0.554,
+          "weights_gib": 1.43,
+          "kv_cache_tokens": 360155
+        },
+        {
+          "max_num_seqs": 256,
+          "requests_per_s": 21.4,
+          "output_tokens_per_s": 1087.6,
+          "output_tokens_per_request": 50.8,
+          "gpu_seconds_per_1k": 46.74,
+          "latency_p50": 0.274,
+          "latency_p90": 0.581,
+          "weights_gib": 1.43,
+          "kv_cache_tokens": 346989
+        }
+      ],
+      "best": {
+        "max_num_seqs": 256,
+        "requests_per_s": 21.4,
+        "output_tokens_per_s": 1087.6,
+        "output_tokens_per_request": 50.8,
+        "gpu_seconds_per_1k": 46.74,
+        "latency_p50": 0.274,
+        "latency_p90": 0.581,
+        "weights_gib": 1.43,
+        "kv_cache_tokens": 346989
+      }
+    },
+    "Qwen/Qwen3.5-2B": {
+      "settings": [
+        {
+          "max_num_seqs": 16,
+          "requests_per_s": 8.22,
+          "output_tokens_per_s": 429.4,
+          "output_tokens_per_request": 52.2,
+          "gpu_seconds_per_1k": 121.59,
+          "latency_p50": 0.643,
+          "latency_p90": 1.223,
+          "weights_gib": 3.56,
+          "kv_cache_tokens": 238153
+        },
+        {
+          "max_num_seqs": 64,
+          "requests_per_s": 10.86,
+          "output_tokens_per_s": 565.4,
+          "output_tokens_per_request": 52.0,
+          "gpu_seconds_per_1k": 92.04,
+          "latency_p50": 0.661,
+          "latency_p90": 1.224,
+          "weights_gib": 3.56,
+          "kv_cache_tokens": 231424
+        },
+        {
+          "max_num_seqs": 256,
+          "requests_per_s": 11.2,
+          "output_tokens_per_s": 585.1,
+          "output_tokens_per_request": 52.3,
+          "gpu_seconds_per_1k": 89.32,
+          "latency_p50": 0.644,
+          "latency_p90": 1.226,
+          "weights_gib": 3.56,
+          "kv_cache_tokens": 241078
+        }
+      ],
+      "best": {
+        "max_num_seqs": 256,
+        "requests_per_s": 11.2,
+        "output_tokens_per_s": 585.1,
+        "output_tokens_per_request": 52.3,
+        "gpu_seconds_per_1k": 89.32,
+        "latency_p50": 0.644,
+        "latency_p90": 1.226,
+        "weights_gib": 3.56,
+        "kv_cache_tokens": 241078
+      }
+    }
+  },
+  "speedup": 1.91,
+  "clears_2x": false
+}
