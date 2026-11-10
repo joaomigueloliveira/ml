@@ -88,3 +88,22 @@ Settled while scoping #17, so no further study is needed:
 - **Float tolerance:** a 1e-4 relative tolerance would turn 1 to 2 of the 2,000 test rows right per
   model, so the scorer stays exact.
 - **Gold call order:** the scorer already ignores it.
+
+## Addendum (2026-11-10): the trigger is measured on ambiguous rows, and it fires (#73)
+
+The trigger above compares a method's gain on raw test with its gain on `test-clean`. It can't fire:
+the gains are almost equal for every method (A +38.6 vs +38.5 points, B +25.0 vs +28.6), because
+learning a quirk on an ambiguous row costs nothing on `test-clean` and gains only a little on test.
+Quirk-learning shows directly on the 287 ambiguous test rows, where gold's choice is one of several
+reasonable ones:
+
+| | A | Filtered B | B | D | 2B teacher | 0.8B student |
+|---|---:|---:|---:|---:|---:|---:|
+| Strict exact on ambiguous test rows | 56.4 | 34.1 | 22.3 | 19.2 | 17.1 | 10.5 |
+
+- **The trigger is redefined** as a method's strict exact on the ambiguous test rows, compared with
+  the teacher's. It fires for A and for filtered B (which uses gold as a filter).
+- **Firing yields a finding, not an audit.** "A learned xLAM's quirks: it matches gold's arbitrary
+  choice on 56% of ambiguous rows against the teacher's 17%." That is why methods are compared on
+  `test-clean`. Validation is still not audited (ADR 0009). The tuned train filter is measured
+  only before a new gold-label run, and none is planned.

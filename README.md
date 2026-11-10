@@ -142,8 +142,10 @@ Shortcuts taken on purpose, why, and what would make us revisit them.
   labelled test, as in practice, where a small labelled eval set is the norm (ADR 0007).
 - **One small teacher.** The 2B is right on about 65% of train rows; a stronger teacher would likely
   lift every label-free method. The results are about this pair (ADR 0004).
-- **Validation is not audited.** Checkpoints are chosen on raw validation labels, which carry xLAM's
-  label noise (ADR 0005). Revisit if a method gains much more on raw test than on `test-clean`.
+- **Validation is not audited, and the pick within a run is noisy.** Checkpoints are chosen on raw
+  validation labels (ADR 0005), and 1,000 rows can't separate most checkpoints of a run. Test
+  numbers stay fair for the checkpoint picked, so methods are compared on `test-clean`, never on
+  validation (ADR 0009).
 
 ## Quickstart
 
