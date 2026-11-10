@@ -194,7 +194,10 @@
      "lenient_exact_ci": [
       0.7678,
       0.8179
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 1000,
@@ -214,7 +217,10 @@
      "lenient_exact_ci": [
       0.7992,
       0.8464
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 1500,
@@ -234,7 +240,10 @@
      "lenient_exact_ci": [
       0.7887,
       0.8369
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 2000,
@@ -254,7 +263,10 @@
      "lenient_exact_ci": [
       0.8213,
       0.8661
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 2500,
@@ -274,7 +286,10 @@
      "lenient_exact_ci": [
       0.8149,
       0.8605
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 3000,
@@ -294,7 +309,10 @@
      "lenient_exact_ci": [
       0.8223,
       0.867
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 3411,
@@ -314,7 +332,13 @@
      "lenient_exact_ci": [
       0.8244,
       0.8689
-     ]
+     ],
+     "bfcl": 0.845,
+     "bfcl_ci": [
+      0.8213,
+      0.8661
+     ],
+     "bfcl_agree_2b": 0.617
     }
    ],
    "selected": 3411,
@@ -394,7 +418,13 @@
      "lenient_exact_ci": [
       0.6219,
       0.6809
-     ]
+     ],
+     "bfcl": 0.727,
+     "bfcl_ci": [
+      0.6986,
+      0.7537
+     ],
+     "bfcl_agree_2b": 0.643
     },
     {
      "step": 1000,
@@ -414,7 +444,13 @@
      "lenient_exact_ci": [
       0.6986,
       0.7537
-     ]
+     ],
+     "bfcl": 0.779,
+     "bfcl_ci": [
+      0.7522,
+      0.8036
+     ],
+     "bfcl_agree_2b": 0.685
     },
     {
      "step": 1500,
@@ -434,7 +470,13 @@
      "lenient_exact_ci": [
       0.7047,
       0.7595
-     ]
+     ],
+     "bfcl": 0.791,
+     "bfcl_ci": [
+      0.7647,
+      0.8151
+     ],
+     "bfcl_agree_2b": 0.717
     },
     {
      "step": 2000,
@@ -454,7 +496,13 @@
      "lenient_exact_ci": [
       0.7047,
       0.7595
-     ]
+     ],
+     "bfcl": 0.789,
+     "bfcl_ci": [
+      0.7626,
+      0.8132
+     ],
+     "bfcl_agree_2b": 0.726
     },
     {
      "step": 2500,
@@ -474,7 +522,13 @@
      "lenient_exact_ci": [
       0.7109,
       0.7653
-     ]
+     ],
+     "bfcl": 0.801,
+     "bfcl_ci": [
+      0.7751,
+      0.8246
+     ],
+     "bfcl_agree_2b": 0.721
     },
     {
      "step": 3000,
@@ -494,7 +548,13 @@
      "lenient_exact_ci": [
       0.7099,
       0.7643
-     ]
+     ],
+     "bfcl": 0.809,
+     "bfcl_ci": [
+      0.7835,
+      0.8322
+     ],
+     "bfcl_agree_2b": 0.729
     },
     {
      "step": 3277,
@@ -514,7 +574,13 @@
      "lenient_exact_ci": [
       0.7109,
       0.7653
-     ]
+     ],
+     "bfcl": 0.811,
+     "bfcl_ci": [
+      0.7856,
+      0.8341
+     ],
+     "bfcl_agree_2b": 0.732
     }
    ],
    "selected": 1500,
@@ -596,7 +662,10 @@
      "lenient_exact_ci": [
       0.7336,
       0.7864
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 1000,
@@ -616,7 +685,13 @@
      "lenient_exact_ci": [
       0.7626,
       0.8132
-     ]
+     ],
+     "bfcl": 0.808,
+     "bfcl_ci": [
+      0.7824,
+      0.8312
+     ],
+     "bfcl_agree_2b": 0.667
     },
     {
      "step": 1500,
@@ -636,7 +711,10 @@
      "lenient_exact_ci": [
       0.7647,
       0.8151
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 2000,
@@ -656,7 +734,10 @@
      "lenient_exact_ci": [
       0.7751,
       0.8246
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 2356,
@@ -676,7 +757,10 @@
      "lenient_exact_ci": [
       0.7751,
       0.8246
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     }
    ],
    "selected": 1000,
@@ -756,7 +840,13 @@
      "lenient_exact_ci": [
       0.6975,
       0.7527
-     ]
+     ],
+     "bfcl": 0.787,
+     "bfcl_ci": [
+      0.7606,
+      0.8113
+     ],
+     "bfcl_agree_2b": 0.704
     },
     {
      "step": 1000,
@@ -776,7 +866,13 @@
      "lenient_exact_ci": [
       0.6699,
       0.7266
-     ]
+     ],
+     "bfcl": 0.778,
+     "bfcl_ci": [
+      0.7512,
+      0.8027
+     ],
+     "bfcl_agree_2b": 0.697
     },
     {
      "step": 1500,
@@ -796,7 +892,13 @@
      "lenient_exact_ci": [
       0.7109,
       0.7653
-     ]
+     ],
+     "bfcl": 0.782,
+     "bfcl_ci": [
+      0.7554,
+      0.8065
+     ],
+     "bfcl_agree_2b": 0.688
     },
     {
      "step": 2000,
@@ -816,7 +918,13 @@
      "lenient_exact_ci": [
       0.7006,
       0.7556
-     ]
+     ],
+     "bfcl": 0.798,
+     "bfcl_ci": [
+      0.772,
+      0.8217
+     ],
+     "bfcl_agree_2b": 0.704
     },
     {
      "step": 2500,
@@ -836,7 +944,13 @@
      "lenient_exact_ci": [
       0.7016,
       0.7566
-     ]
+     ],
+     "bfcl": 0.818,
+     "bfcl_ci": [
+      0.7929,
+      0.8407
+     ],
+     "bfcl_agree_2b": 0.742
     },
     {
      "step": 3000,
@@ -856,7 +970,13 @@
      "lenient_exact_ci": [
       0.7047,
       0.7595
-     ]
+     ],
+     "bfcl": 0.825,
+     "bfcl_ci": [
+      0.8002,
+      0.8473
+     ],
+     "bfcl_agree_2b": 0.755
     },
     {
      "step": 3410,
@@ -876,7 +996,13 @@
      "lenient_exact_ci": [
       0.7088,
       0.7633
-     ]
+     ],
+     "bfcl": 0.819,
+     "bfcl_ci": [
+      0.7939,
+      0.8416
+     ],
+     "bfcl_agree_2b": 0.752
     }
    ],
    "selected": 3000,
@@ -958,7 +1084,10 @@
      "lenient_exact_ci": [
       0.6893,
       0.745
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 200,
@@ -978,7 +1107,10 @@
      "lenient_exact_ci": [
       0.7047,
       0.7595
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 300,
@@ -998,7 +1130,10 @@
      "lenient_exact_ci": [
       0.7037,
       0.7585
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 400,
@@ -1018,7 +1153,13 @@
      "lenient_exact_ci": [
       0.7088,
       0.7633
-     ]
+     ],
+     "bfcl": 0.789,
+     "bfcl_ci": [
+      0.7626,
+      0.8132
+     ],
+     "bfcl_agree_2b": 0.707
     },
     {
      "step": 500,
@@ -1038,7 +1179,10 @@
      "lenient_exact_ci": [
       0.7047,
       0.7595
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     },
     {
      "step": 1000,
@@ -1058,7 +1202,10 @@
      "lenient_exact_ci": [
       0.6975,
       0.7527
-     ]
+     ],
+     "bfcl": null,
+     "bfcl_ci": null,
+     "bfcl_agree_2b": null
     }
    ],
    "selected": 400,
@@ -1179,6 +1326,12 @@
     0.6975,
     0.7527
    ],
+   "bfcl": 0.787,
+   "bfcl_ci": [
+    0.7606,
+    0.8113
+   ],
+   "bfcl_agree_2b": 0.704,
    "official": {
     "test": {
      "n": 2000,

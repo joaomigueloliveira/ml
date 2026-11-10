@@ -155,6 +155,34 @@ Selected: step 3000. Inside its interval (statistically tied): 500, 1500, 2000, 
 
 Selected: step 400. Inside its interval (statistically tied): 100, 200, 300, 500, 1000.
 
+## BFCL along the run
+
+Explanation only (#70): these scores never choose a checkpoint or a method, and the selected checkpoints (in bold) keep their official numbers. Agreement with the 2B is the share of BFCL rows where the checkpoint makes the same calls as the raw 2B, both parsed.
+
+### B, SFT on teacher outputs
+
+| Step | GPU-h | Validation exact | BFCL exact | Agrees with the 2B on BFCL |
+|---|---:|---:|---:|---:|
+| 500 | 2.00 | 62.5 [59.5, 65.5] | 72.7 [69.9, 75.4] | 64.3 |
+| 1000 | 2.55 | 70.0 [67.1, 72.8] | 77.9 [75.2, 80.4] | 68.5 |
+| **1500** | 3.12 | 70.8 [67.9, 73.5] | 79.1 [76.5, 81.5] | 71.7 |
+| 2000 | 3.68 | 69.8 [66.9, 72.6] | 78.9 [76.3, 81.3] | 72.6 |
+| 2500 | 4.24 | 70.0 [67.1, 72.8] | 80.1 [77.5, 82.5] | 72.1 |
+| 3000 | 4.80 | 69.9 [67.0, 72.7] | 80.9 [78.3, 83.2] | 72.9 |
+| 3277 | 5.11 | 70.1 [67.2, 72.9] | 81.1 [78.6, 83.4] | 73.2 |
+
+### D, on-policy distillation
+
+| Step | GPU-h | Validation exact | BFCL exact | Agrees with the 2B on BFCL |
+|---|---:|---:|---:|---:|
+| 500 | 2.22 | 70.0 [67.1, 72.8] | 78.7 [76.1, 81.1] | 70.4 |
+| 1000 | 4.50 | 65.7 [62.7, 68.6] | 77.8 [75.1, 80.3] | 69.7 |
+| 1500 | 6.80 | 70.3 [67.4, 73.0] | 78.2 [75.5, 80.7] | 68.8 |
+| 2000 | 9.08 | 69.1 [66.2, 71.9] | 79.8 [77.2, 82.2] | 70.4 |
+| 2500 | 11.34 | 69.9 [67.0, 72.7] | 81.8 [79.3, 84.1] | 74.2 |
+| **3000** | 13.54 | 70.6 [67.7, 73.3] | 82.5 [80.0, 84.7] | 75.5 |
+| 3410 | 15.38 | 70.6 [67.7, 73.3] | 81.9 [79.4, 84.2] | 75.2 |
+
 ## Paired comparisons
 
 Exact McNemar test on strict exact, row by row.
