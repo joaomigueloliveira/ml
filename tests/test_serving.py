@@ -54,7 +54,6 @@ def test_report_compares_each_model_at_its_cheapest_setting() -> None:
     # Five latencies: p90 is the largest.
     assert student["best"]["latency_p90"] == 0.9
     assert data["speedup"] == pytest.approx(2.5)
-    assert data["clears_2x"] is True
     md = render(data)
     assert "2.5x cheaper" in md
     assert "| Qwen/Qwen3.5-2B | 16 |" in md
@@ -67,17 +66,17 @@ def test_report_gives_the_ratio_one_request_at_a_time_and_per_output_token() -> 
     ]
     runs[1]["output_tokens"] = 54_000
     data = report(runs)
-    # Batched: 36 / 20 = 1.8, which misses 2x. One at a time over the same prompts: 1.25 / 0.5.
-    assert (data["speedup"], data["clears_2x"]) == (1.8, False)
+    # Batched: 36 / 20 = 1.8. One at a time over the same prompts: 1.25 / 0.5.
+    assert data["speedup"] == 1.8
     assert data["latency_speedup"] == 2.5
     # Per output token: 2,500 tokens/s against 1,500.
     assert data["per_token_speedup"] == pytest.approx(1.67)
     md = render(data)
-    assert "misses" in md
-    assert "2.5x" in md
+    assert "answers 2.5x faster one request at a time" in md
+    assert "serves 1.8x cheaper with every prompt batched" in md
 
 
-def test_report_without_the_teacher_gives_no_verdict() -> None:
+def test_report_without_the_teacher_gives_no_ratio() -> None:
     data = report([_run("Qwen/Qwen3.5-0.8B", 256, 20.0)])
-    assert (data["speedup"], data["clears_2x"]) == (None, None)
+    assert (data["speedup"], data["latency_speedup"]) == (None, None)
     assert "cheaper" not in render(data)

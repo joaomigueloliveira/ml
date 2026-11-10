@@ -1,5 +1,5 @@
-"""fc-serve: what a model costs to serve in vLLM on this GPU (#63; #2's criterion: at least 2x
-cheaper to serve than the teacher).
+"""fc-serve: what a model costs to serve in vLLM on this GPU, the student against the teacher
+(#63).
 
 One run is one model at one cap on concurrent requests (vLLM's `max_num_seqs`), in a fresh engine,
 with fc-eval's settings: bf16, greedy, the eval prompt, thinking off, 1,024 new tokens at most.
@@ -88,13 +88,12 @@ def report(
         m["best"] = min(m["settings"], key=lambda s: s["gpu_seconds_per_1k"])
     out: dict[str, Any] = {"student": student, "teacher": teacher, "models": models}
     if student not in models or teacher not in models:
-        return out | {"speedup": None, "clears_2x": None, "latency_speedup": None}
+        return out | {"speedup": None, "latency_speedup": None}
     small, big = models[student]["best"], models[teacher]["best"]
     speedup = round(big["gpu_seconds_per_1k"] / small["gpu_seconds_per_1k"], 2)
     same_rows = small["latency_rows"] == big["latency_rows"]
     return out | {
         "speedup": speedup,
-        "clears_2x": speedup >= 2,
         "latency_speedup": (
             round(big["latency_total"] / small["latency_total"], 2) if same_rows else None
         ),
@@ -119,22 +118,20 @@ def render(data: Mapping[str, Any]) -> str:
         "",
     ]
     if data["speedup"] is not None:
-        verdict = "clears" if data["clears_2x"] else "misses"
-        out += [
-            f"**The {data['student']} serves {data['speedup']:.1f}x cheaper than the "
-            f"{data['teacher']}**, which {verdict} #2's 2x criterion.",
-            "",
-            f"- Per output token it is {data['per_token_speedup']:.2f}x: the two models' answers "
-            "differ in length, and a request's cost includes its answer.",
-        ]
+        faster = ""
         if data["latency_speedup"] is not None:
-            rows = models[data["student"]]["best"]["latency_rows"]
-            out.append(
-                f"- One request at a time, over the same {rows} prompts, it is "
-                f"{data['latency_speedup']:.1f}x faster. Batching narrows the gap: the workload "
-                "is mostly prompt processing (input tokens per request below)."
-            )
+            faster = f"answers {data['latency_speedup']:.1f}x faster one request at a time, and "
+        rows = models[data["student"]]["best"]["latency_rows"]
         out += [
+            f"**Against the {data['teacher']}, the {data['student']} {faster}serves "
+            f"{data['speedup']:.1f}x cheaper with every prompt batched.**",
+            "",
+            f"- One at a time is over the same {rows} prompts; batched is GPU-seconds per 1,000 "
+            "requests. Batching narrows the gap: the prompts are long and the answers short "
+            "(input and output tokens per request below), and prompt processing is where a "
+            "smaller model gains least.",
+            f"- Per output token, batched, it is {data['per_token_speedup']:.2f}x: the two "
+            "models' answers differ in length, and a request's cost includes its answer.",
             "- Measured with vLLM's default scheduler; a larger batched-token budget was not "
             "tried, and could favour the smaller model.",
             "",

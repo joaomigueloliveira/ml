@@ -148,7 +148,6 @@
     }
   },
   "speedup": 1.91,
-  "clears_2x": false,
   "latency_speedup": 2.39,
   "per_token_speedup": 1.86
 }

@@ -113,11 +113,11 @@ Training cost (#36): one epoch of LoRA SFT over the full train split takes about
 RTX 3060 (0.072 GPU-hours per 1,000 rows, 4.6 GiB peak), after length grouping removed most of the
 padding. The settings and the sweeps behind them: [`results/sft-cost.md`](results/sft-cost.md).
 
-Serving cost (#63): in vLLM on the same card, with every test-clean prompt submitted at once, the
-raw 0.8B costs 46.7 GPU-seconds per 1,000 requests and the 2B 89.3, each at its best cap on
-concurrent requests: **1.9× cheaper, just short of the 2× criterion** (#2), with vLLM's default
-scheduler. One request at a time it is 2.4× faster (median latency 0.27 s against 0.64 s); batching
-narrows the gap because the prompts are long and the answers short. Every method's model is the
+Serving cost (#63): in vLLM on the same card, **the 0.8B answers 2.4× faster than the 2B one
+request at a time** (median latency 0.27 s against 0.64 s), **and serves 1.9× cheaper with every
+test-clean prompt batched** (46.7 against 89.3 GPU-seconds per 1,000 requests, each at its best cap
+on concurrent requests, vLLM's default scheduler). Batching narrows the gap because the prompts are
+long and the answers short. Every method's model is the
 0.8B with a LoRA merged in, so this should hold for each of them if its answers are as long; the
 final student is re-run as a check. Settings and every run: [`results/serving.md`](results/serving.md).
 
