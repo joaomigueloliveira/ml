@@ -1,14 +1,18 @@
-"""Methods A and B: LoRA SFT of the student on the train split (fc-sft), on the gold labels
-(method A) or on the teacher's outputs (method B), with the shared setup of ADR 0006.
+"""Methods A, B and C: LoRA training of the student on the train split (fc-sft), on the gold labels
+(method A), on the teacher's outputs (method B), or on the teacher's stored top-k log-probs over
+those same outputs (method C, logit distillation, ADR 0010), with the shared setup of ADR 0006.
 
 uv run --no-sync fc-sft --n-rows 1000                 # method A on a random 1,000 train rows
 uv run --no-sync fc-sft --n-rows 1000 --wandb         # also log to Weights & Biases
 uv run --no-sync fc-sft --targets teacher --teacher-run runs/eval-train-Qwen_Qwen3.5-2B
                                                       # method B; --filter lenient (filtered B) or
                                                       # --filter grounded (grounded B) for variants
+uv run --no-sync fc-sft --targets teacher-topk --teacher-run runs/eval-train-Qwen_Qwen3.5-2B \
+    --teacher-topk runs/topk-20-eval-train-Qwen_Qwen3.5-2B  # C; --filter lenient: filtered C
 
 Method B trains on the train rows the teacher run answered, minus output that doesn't parse, and
-adds the teacher run's share of generation time to the run's GPU-hours.
+adds the teacher run's share of generation time to the run's GPU-hours. Method C trains on the same
+rows with fc_distill.kd's loss, and adds the top-k scoring pass (fc-teacher-topk) too.
 
 Needs the train extra (`uv sync --extra inference --extra train`). The loss covers the answer only:
 TRL masks the prompt, which the eval's chat template renders identically (thinking off, ADR 0003).
@@ -197,15 +201,22 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--revision", default=None, help="model revision (default: latest on main)")
     ap.add_argument(
         "--targets",
-        choices=("gold", "teacher"),
+        choices=("gold", "teacher", "teacher-topk"),
         default="gold",
-        help="train on the gold labels (method A) or the teacher's outputs (method B)",
+        help="train on the gold labels (method A), the teacher's outputs (method B) or the "
+        "teacher's top-k log-probs on them (method C)",
     )
     ap.add_argument(
         "--teacher-run",
         type=Path,
         default=None,
-        help="fc-eval run of the teacher on the train split (--targets teacher)",
+        help="fc-eval run of the teacher on the train split (--targets teacher, teacher-topk)",
+    )
+    ap.add_argument(
+        "--teacher-topk",
+        type=Path,
+        default=None,
+        help="fc-teacher-topk run over the same teacher run (--targets teacher-topk)",
     )
     ap.add_argument(
         "--filter",
@@ -246,9 +257,12 @@ def parse_args() -> argparse.Namespace:
         "--allow-dirty", action="store_true", help="run even with uncommitted changes (recorded)"
     )
     args = ap.parse_args()
-    if (args.targets == "teacher") != (args.teacher_run is not None):
-        ap.error("--teacher-run goes with --targets teacher, and only with it")
-    if args.filter != "none" and args.targets != "teacher":
+    uses_teacher = args.targets in ("teacher", "teacher-topk")
+    if uses_teacher != (args.teacher_run is not None):
+        ap.error("--teacher-run goes with --targets teacher or teacher-topk, and only with them")
+    if (args.targets == "teacher-topk") != (args.teacher_topk is not None):
+        ap.error("--teacher-topk goes with --targets teacher-topk, and only with it")
+    if args.filter != "none" and not uses_teacher:
         ap.error("--filter applies to teacher outputs only")
     if not args.allow_dirty and git_state()["dirty"]:
         ap.error("uncommitted changes to tracked files; commit them or pass --allow-dirty")
@@ -263,6 +277,9 @@ def main() -> None:
     from peft import LoraConfig
     from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
     from trl import SFTConfig, SFTTrainer
+
+    from fc_distill.kd import kd_trainer
+    from fc_distill.teacher_topk import load_teacher_topk
 
     rows = load_split("train")
     teacher = None if args.teacher_run is None else load_teacher_run(args.teacher_run)
@@ -279,17 +296,28 @@ def main() -> None:
         records, counts = [sft_record(ex) for ex in rows], {"offered": len(rows), "kept": len(rows)}
         teacher_hours = 0.0
     else:
-        # Filtered B is a variant of method B (GLOSSARY), not a method of its own.
-        method = "sft-teacher"
-        records, counts = teacher_records(rows, teacher.outputs, rule=args.filter)
+        # Filtered B is a variant of method B (GLOSSARY), not a method of its own; so is
+        # filtered C of C.
+        method = "sft-teacher" if args.targets == "teacher" else "sft-teacher-topk"
+        kept, counts = teacher_rows(rows, teacher.outputs, rule=args.filter)
+        records = [record for _, record in kept]
         counts = {"unanswered": unanswered} | counts
         data = {
-            "source": "teacher",
+            "source": args.targets,
             "teacher_run": str(args.teacher_run),
             "filter": args.filter,
         }
         # The generation this run's rows needed: all of it, unless --n-rows samples fewer.
-        teacher_hours = teacher.gpu_hours * len(rows) / len(teacher.outputs)
+        share = len(rows) / len(teacher.outputs)
+        teacher_hours = teacher.gpu_hours * share
+        if args.teacher_topk is not None:
+            topk = load_teacher_topk(args.teacher_topk, args.teacher_run)
+            missing = [i for i, _ in kept if i not in topk.rows]
+            if missing:
+                raise ValueError(f"{len(missing)} rows have no stored top-k, e.g. {missing[:3]}")
+            data["teacher_topk"] = str(args.teacher_topk)
+            # ... and the scoring pass, which scored every row B trains on.
+            teacher_hours += topk.gpu_hours * share
     print("train rows:", json.dumps(counts))
     # Everything a cost comparison varies is in the name, so two settings never share a run
     # directory (and so never resume each other's W&B run).
@@ -348,10 +376,16 @@ def main() -> None:
     callback = type("ComputeCallback", (ComputeLogger, TrainerCallback), {})(
         tracker, clock, torch.cuda.max_memory_reserved
     )
-    trainer = SFTTrainer(
+    dataset = (
+        Dataset.from_list([dict(r) for r in records])
+        if args.teacher_topk is None
+        # Method C's collator looks each row's stored targets up by its id.
+        else Dataset.from_list([dict(r) | {"row_id": i} for i, r in kept])
+    )
+    trainer_kwargs: dict[str, Any] = dict(
         model=model,
         processing_class=AutoTokenizer.from_pretrained(args.model, revision=args.revision),
-        train_dataset=Dataset.from_list([dict(r) for r in records]),
+        train_dataset=dataset,
         peft_config=LoraConfig(
             r=args.lora_r,
             lora_alpha=args.lora_alpha,
@@ -380,8 +414,15 @@ def main() -> None:
             include_num_input_tokens_seen="non_padding",
             # TRL's default for prompt-completion data; explicit because the run depends on it.
             completion_only_loss=True,
+            # Method C: keep `row_id` past the trainer's column pruning, for its collator.
+            remove_unused_columns=args.teacher_topk is None,
         ),
         callbacks=[callback],
+    )
+    trainer = (
+        SFTTrainer(**trainer_kwargs)
+        if args.teacher_topk is None
+        else kd_trainer(topk.rows, **trainer_kwargs)
     )
     torch.cuda.reset_peak_memory_stats()
     trainer.train()

@@ -132,6 +132,22 @@ def load_topk(path: Path) -> dict[int, RowTopk]:
     }
 
 
+class TeacherTopk(NamedTuple):
+    """A finished fc-teacher-topk run: its rows by id, and the GPU-hours of its scoring calls."""
+
+    rows: dict[int, RowTopk]
+    gpu_hours: float
+
+
+def load_teacher_topk(run_dir: Path, teacher_run: Path) -> TeacherTopk:
+    """The run in `run_dir`, which must have scored `teacher_run`'s outputs (the text B and C
+    train on)."""
+    summary = json.loads((run_dir / "summary.json").read_text())
+    if Path(summary["teacher_run"]) != Path(teacher_run):
+        raise ValueError(f"{run_dir} scored {summary['teacher_run']}, not {teacher_run}")
+    return TeacherTopk(load_topk(run_dir / "topk.npz"), summary["gpu_hours"])
+
+
 def coverage(rows: Sequence[RowTopk], *, k: int) -> dict[str, float]:
     """How much the stored top k says: the share of answer positions whose written token is the
     teacher's top-1, and the probability mass the top k hold (what the tail entry stands in for)."""
