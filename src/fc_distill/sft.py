@@ -53,6 +53,9 @@ STUDENT = "Qwen/Qwen3.5-0.8B"
 LORA_TARGETS = "all-linear"
 SCHEDULE = "cosine"
 WARMUP_RATIO = 0.03
+# The longest train row is 3,550 tokens: 4,096 truncates no answer. fc-teacher-topk tokenizes
+# with the same value, so its positions are the ones the loss covers.
+MAX_LENGTH = 4096
 
 
 class SftRecord(TypedDict):
@@ -213,8 +216,7 @@ def parse_args() -> argparse.Namespace:
     )
     ap.add_argument("--n-rows", type=int, default=None, help="random train rows (default: all)")
     ap.add_argument("--seed", type=int, default=0, help="row sample, LoRA init and data order")
-    # The longest train row is 3,550 tokens: 4,096 truncates no answer.
-    ap.add_argument("--max-length", type=int, default=4096)
+    ap.add_argument("--max-length", type=int, default=MAX_LENGTH)
     ap.add_argument("--batch-size", type=int, default=4, help="rows per micro-batch")
     ap.add_argument("--grad-accum", type=int, default=4, help="micro-batches per optimizer step")
     ap.add_argument(

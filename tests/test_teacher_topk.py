@@ -5,8 +5,10 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from fc_distill.sft import sft_record
 from fc_distill.teacher_topk import (
     RowTopk,
+    answer_matches,
     answer_positions,
     coverage,
     load_topk,
@@ -14,11 +16,21 @@ from fc_distill.teacher_topk import (
     score_row,
     top_k_entries,
 )
+from tests.factories import make_example
 
 
 def test_answer_positions_are_the_positions_with_a_label() -> None:
     # TRL's labels: -100 over the prompt, the token id over the completion.
     assert answer_positions([-100, -100, -100, 7, 8, 9]) == [3, 4, 5]
+
+
+def test_answer_matches_when_the_labelled_tokens_spell_the_answer_and_the_end_of_turn() -> None:
+    record = sft_record(make_example(1), [{"name": "f", "arguments": {"x": 2}}])
+    answer = '[{"name": "f", "arguments": {"x": 2}}]<|im_end|>\n'
+
+    assert answer_matches(record, answer)
+    assert not answer_matches(record, answer.replace("2", "3"))
+    assert not answer_matches(record, "<think>\n\n</think>\n\n" + answer)
 
 
 def test_top_k_entries_sorts_by_rank_and_keeps_a_written_token_outside_the_top_k_apart() -> None:
@@ -89,7 +101,7 @@ def test_saved_top_k_loads_back_row_by_row(tmp_path: Path) -> None:
 
 
 def test_coverage_reports_top_1_agreement_and_the_mass_the_top_k_hold() -> None:
-    stats = coverage(_ROWS)
+    stats = coverage(_ROWS, k=2)
 
     assert stats["rows"] == 2
     assert stats["positions"] == 3
