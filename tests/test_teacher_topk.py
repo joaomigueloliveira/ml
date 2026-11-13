@@ -1,5 +1,6 @@
 import math
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -10,6 +11,7 @@ from fc_distill.teacher_topk import (
     coverage,
     load_topk,
     save_topk,
+    score_row,
     top_k_entries,
 )
 
@@ -94,3 +96,24 @@ def test_coverage_reports_top_1_agreement_and_the_mass_the_top_k_hold() -> None:
     assert stats["written_is_top1"] == pytest.approx(2 / 3)
     assert stats["mass_min"] == pytest.approx(0.9)
     assert stats["mass_median"] == pytest.approx(1.0)
+
+
+def test_score_row_keeps_only_the_answer_positions_of_vllms_flat_log_probs() -> None:
+    # Prompt [1, 2], answer [7, 8]: vLLM scores positions 1 to 3 (position 0 has nothing before
+    # it); k = 2, and at position 3 the written token 8 ranks 5th, so it comes as an extra entry.
+    flat = SimpleNamespace(
+        start_indices=[0, 0, 2, 4],
+        end_indices=[0, 2, 4, 7],
+        token_ids=[2, 3, 7, 9, 9, 6, 8],
+        logprobs=[-0.1, -2.0, -0.2, -1.9, -0.3, -1.5, -4.0],
+        ranks=[1, 2, 1, 2, 1, 2, 5],
+    )
+
+    row = score_row(5, [1, 2, 7, 8], [-100, -100, 7, 8], flat, k=2)
+
+    assert row.row_id == 5
+    np.testing.assert_array_equal(row.positions, [2, 3])
+    np.testing.assert_array_equal(row.tokens, [7, 8])
+    np.testing.assert_array_equal(row.ids, [[7, 9], [9, 6]])
+    np.testing.assert_array_equal(row.token_rank, [1, 5])
+    np.testing.assert_allclose(row.token_logprob, [-0.2, -4.0])
