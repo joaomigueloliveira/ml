@@ -3334,6 +3334,7 @@ source = { editable = "." }
 dependencies = [
     { name = "datasets" },
     { name = "huggingface-hub" },
+    { name = "numpy" },
     { name = "wandb" },
 ]
 
@@ -3366,6 +3367,7 @@ requires-dist = [
     { name = "datasets", specifier = ">=5.1.0" },
     { name = "flash-linear-attention", marker = "extra == 'train'", specifier = ">=0.6.0" },
     { name = "huggingface-hub", extras = ["cli"], specifier = ">=2.4.0" },
+    { name = "numpy", specifier = ">=2.3.5" },
     { name = "peft", marker = "extra == 'train'", specifier = ">=0.21.2" },
     { name = "trl", marker = "extra == 'train'", specifier = ">=1.17.1" },
     { name = "vllm", marker = "extra == 'inference'", specifier = "==0.33.0" },
