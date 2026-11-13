@@ -13,6 +13,7 @@ from fc_distill.sft import (
     load_teacher_run,
     sft_record,
     teacher_records,
+    teacher_rows,
 )
 from fc_distill.tracking import GpuClock
 from tests.factories import make_example
@@ -127,6 +128,14 @@ def test_unfiltered_teacher_records_keep_wrong_calls_and_drop_what_does_not_pars
         '[{"name": "f", "arguments": {"x": 2}}]',
     ]
     assert counts == {"offered": 4, "kept": 3, "unparsed": 1, "filtered_out": 0}
+
+
+def test_teacher_rows_pair_each_kept_record_with_its_row_id() -> None:
+    kept, counts = teacher_rows(_ROWS, _OUTPUTS, rule="lenient")
+
+    assert [row_id for row_id, _ in kept] == [1, 2]
+    assert [r for _, r in kept] == teacher_records(_ROWS, _OUTPUTS, rule="lenient")[0]
+    assert (counts["unparsed"], counts["filtered_out"]) == (1, 1)
 
 
 def test_lenient_teacher_records_keep_only_calls_that_lenient_match_gold() -> None:

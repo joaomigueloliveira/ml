@@ -113,13 +113,14 @@ def keeps(rule: Filter, calls: list[Call], ex: Example) -> bool:
     return True
 
 
-def teacher_records(
+def teacher_rows(
     rows: Sequence[Example], outputs: Mapping[int, str], *, rule: Filter
-) -> tuple[list[SftRecord], dict[str, int]]:
-    """Method B's training records: each row answered by the teacher's calls, rewritten in
-    gold's format so A and B targets differ in content only. Output that doesn't parse is always
-    dropped; `rule` may drop more (see `keeps`). The counts say how many rows each step dropped."""
-    records = []
+) -> tuple[list[tuple[int, SftRecord]], dict[str, int]]:
+    """Method B's training records, each with the id of the row it answers: each row answered by
+    the teacher's calls, rewritten in gold's format so A and B targets differ in content only.
+    Output that doesn't parse is always dropped; `rule` may drop more (see `keeps`). The counts
+    say how many rows each step dropped."""
+    kept = []
     counts = {"offered": len(rows), "kept": 0, "unparsed": 0, "filtered_out": 0}
     for ex in rows:
         calls = parse_calls(outputs[ex["id"]])
@@ -132,9 +133,17 @@ def teacher_records(
             gold_shaped: list[Call] = [
                 {"name": c["name"], "arguments": c["arguments"]} for c in calls
             ]
-            records.append(sft_record(ex, gold_shaped))
+            kept.append((ex["id"], sft_record(ex, gold_shaped)))
             counts["kept"] += 1
-    return records, counts
+    return kept, counts
+
+
+def teacher_records(
+    rows: Sequence[Example], outputs: Mapping[int, str], *, rule: Filter
+) -> tuple[list[SftRecord], dict[str, int]]:
+    """`teacher_rows` without the row ids: what fc-sft trains on."""
+    kept, counts = teacher_rows(rows, outputs, rule=rule)
+    return [record for _, record in kept], counts
 
 
 def cost_summary(*, rows: int, tokens: int, seconds: float, peak_bytes: int) -> dict[str, float]:
