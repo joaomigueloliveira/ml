@@ -12,8 +12,8 @@ from fc_distill.teacher_topk import (
     answer_matches,
     answer_positions,
     coverage,
-    load_teacher_topk,
     load_topk,
+    load_topk_run,
     save_topk,
     score_row,
     top_k_entries,
@@ -141,7 +141,7 @@ def test_teacher_topk_run_loads_its_rows_and_scoring_hours(tmp_path: Path) -> No
         json.dumps({"teacher_run": "runs/eval-train-x", "gpu_hours": 1.5})
     )
 
-    run = load_teacher_topk(tmp_path, Path("runs/eval-train-x"))
+    run = load_topk_run(tmp_path, Path("runs/eval-train-x"))
 
     assert sorted(run.rows) == [3, 8]
     assert run.gpu_hours == 1.5
@@ -154,4 +154,4 @@ def test_teacher_topk_run_must_score_the_teacher_run_it_is_paired_with(tmp_path:
     )
 
     with pytest.raises(ValueError, match="eval-train-y"):
-        load_teacher_topk(tmp_path, Path("runs/eval-train-y"))
+        load_topk_run(tmp_path, Path("runs/eval-train-y"))

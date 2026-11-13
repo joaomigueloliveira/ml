@@ -19,7 +19,8 @@ if TYPE_CHECKING:
     import torch
 
 # The student's rest mass is 1 - Σ of its k probabilities; float rounding can take that to 0 or
-# below. The floor keeps its log finite (and its gradient zero there).
+# below. The floor keeps its log finite. Below it the term gives no gradient, but float32 can't
+# resolve 1 - Σ under about 6e-8 anyway, so a smaller rest is noise either way.
 STUDENT_REST_FLOOR = 1e-8
 
 
@@ -68,12 +69,12 @@ class KdCollator:
         import torch
 
         batch: dict[str, Any] = self._base(examples)
-        laid = [
+        per_row = [
             place_targets(self._targets[ex["row_id"]], labels.numpy())
             for ex, labels in zip(examples, batch["labels"], strict=True)
         ]
-        batch["score_ids"] = torch.from_numpy(np.stack([ids for ids, _ in laid]))
-        batch["teacher_logprobs"] = torch.from_numpy(np.stack([lp for _, lp in laid]))
+        batch["score_ids"] = torch.from_numpy(np.stack([ids for ids, _ in per_row]))
+        batch["teacher_logprobs"] = torch.from_numpy(np.stack([lp for _, lp in per_row]))
         return batch
 
 
@@ -108,6 +109,10 @@ def kd_trainer(targets: Mapping[int, RowTopk], **kwargs: Any) -> Any:
             metrics["kl"].append((kl.detach().sum() / n).item())
             metrics["entropy"].append((outputs.entropy[mask].sum() / n).item())
             metrics["mean_token_accuracy"].append((outputs.is_top1[mask].float().sum() / n).item())
+            # TRL's running token count, as B's curves have it (one GPU: no gathering).
+            if mode == "train":
+                self._total_train_tokens += int(inputs["attention_mask"].sum().item())
+            metrics["num_tokens"] = [self._total_train_tokens]
             return (loss, outputs) if return_outputs else loss
 
     trainer = KdTrainer(**kwargs)
