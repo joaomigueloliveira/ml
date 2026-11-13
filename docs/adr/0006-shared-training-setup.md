@@ -35,7 +35,7 @@ The rule stays as is despite validation's noise, and methods are compared on `te
 picked on validation (ADR 0009).
 
 **GPU-hours.** A method's cost is its optimizer-step time plus, for methods that use the teacher,
-the teacher's generation time. Validation scoring is reported separately as selection overhead:
+the teacher's generation time (and, for C, its scoring pass: ADR 0010). Validation scoring is reported separately as selection overhead:
 every method pays about the same.
 
 **Teacher outputs (method B).** The 2B answers all train rows once:

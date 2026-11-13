@@ -1,6 +1,6 @@
 # 0007. Label-free distillation is the main question; SFT on labels is the reference
 
-Date: 2026-11-08 · Status: accepted · Amended 2026-11-08 by ADR 0008 (D starts from the raw student); 2026-11-09 (filtered B before C; grounded B)
+Date: 2026-11-08 · Status: accepted · Amended 2026-11-08 by ADR 0008 (D starts from the raw student); 2026-11-09 (filtered B before C; grounded B); 2026-11-13 by ADR 0010 (filtered C)
 
 ## Context
 
@@ -27,7 +27,7 @@ than the student. That is the question worth answering here.
 | Regime | Methods | Role |
 |---|---|---|
 | Label-free | B (unfiltered), grounded B, D, C | The main question and the README's headline claim |
-| With labels | A, filtered B, E | The reference: what labels buy |
+| With labels | A, filtered B, filtered C, E | The reference: what labels buy |
 
 - **Order:** B → D → C → filtered B → E. The label-free methods run first; the with-labels runs follow.
   Amended 2026-11-09: filtered B ran before C (#60), since it needed no new code and C's design
@@ -49,6 +49,8 @@ than the student. That is the question worth answering here.
   candidate for the headline. It keeps 33,918 of 54,561 train rows at 86.8% lenient agreement with
   gold (B's data: 71.9%), but only 1,360 of the 16,316 rows whose gold values aren't all in the
   query, so it trains on far fewer answers that need a value worked out.
+- **Filtered C** (amended 2026-11-13, ADR 0010): C's loss on filtered B's rows, a with-labels
+  analysis run after C. Filtered C − filtered B is soft against hard targets on clean rows.
 - **A label-free validity check** (every called function exists in the offered tools, required
   arguments present) is reported as a count of the teacher outputs it would drop, not trained on.
 
@@ -76,4 +78,4 @@ Every result is shown next to the baselines and A.
   labelled test, as in practice, where a small labelled eval set is the norm.
 - The teacher is a 2B. With a stronger teacher the label-free numbers would likely be higher; the
   results are about this pair (ADR 0004).
-- C needs a teacher pass that stores top-k probabilities and a KL loss in `fc-sft`.
+- C needs a teacher pass that stores top-k probabilities and a KL loss in `fc-sft` (ADR 0010).
