@@ -23,7 +23,8 @@ grounded B, C, D.
 The main question (ADR 0007).
 
 **With-labels method**:
-A method whose training uses gold labels, as targets, as a filter or in a reward: A, filtered B, E.
+A method whose training uses gold labels, as targets, as a filter or in a reward: A, filtered B,
+filtered C, E.
 The reference for what labels buy.
 
 **Pipeline**:
@@ -47,6 +48,14 @@ Method B trained only on the teacher outputs that lenient-match gold. Uses label
 Method B trained only on the teacher outputs that call offered tools with their required arguments
 and whose every argument value is written in the query. Label-free: the rule reads the query and
 the tools, never gold.
+
+**Filtered C**:
+Method C trained only on the teacher outputs that lenient-match gold, the rows of filtered B. Uses
+labels, as a filter.
+
+**Hard target / soft target**:
+What the student is trained toward at one position: the one token written in the text (hard; A and
+B), or the teacher's probabilities over the vocabulary there (soft; C and D).
 
 **Run**:
 One training job of a method or variant, with its own checkpoints and its own W&B run.
