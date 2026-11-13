@@ -39,6 +39,10 @@ IGNORE = -100  # TRL's label on positions the loss skips
 END_OF_TURN = "<|im_end|>\n"
 # The TRL whose private `_prepare_dataset` `training_tokens` calls (see there).
 TRL_VERSION = "1.17."
+# Tokens vLLM scores per step. Every prompt token needs logits over the whole 248,320-token
+# vocabulary, which vLLM's memory profile leaves out: at its default 8,192 the full pass ran out
+# of memory on the 3060. Longer rows are still scored whole, over several steps (chunked prefill).
+SCORED_TOKENS_PER_STEP = 2048
 
 
 def answer_matches(record: SftRecord, labelled_text: str) -> bool:
@@ -259,6 +263,7 @@ def main() -> None:
         max_logprobs=K,
         # Every prompt position is scored; a cached prefix would skip some of them.
         enable_prefix_caching=False,
+        max_num_batched_tokens=SCORED_TOKENS_PER_STEP,
         limit_mm_per_prompt={"image": 0, "video": 0},
     )
     params = SamplingParams(
@@ -301,6 +306,7 @@ def main() -> None:
             "scoring": "prompt_logprobs on fc-sft's token ids, raw log-probs (T = 1)",
             "tokenizer": STUDENT,
             "max_length": MAX_LENGTH,
+            "max_num_batched_tokens": SCORED_TOKENS_PER_STEP,
         },
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2))
