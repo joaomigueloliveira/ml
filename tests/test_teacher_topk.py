@@ -121,7 +121,9 @@ def test_score_row_keeps_only_the_answer_positions_of_vllms_flat_log_probs() -> 
         ranks=[1, 2, 1, 2, 1, 2, 5],
     )
 
-    row = score_row(5, [1, 2, 7, 8], [-100, -100, 7, 8], flat, k=2)
+    row = score_row(
+        5, np.array([1, 2, 7, 8], dtype=np.int32), np.array([2, 3], dtype=np.int32), flat, k=2
+    )
 
     assert row.row_id == 5
     np.testing.assert_array_equal(row.positions, [2, 3])

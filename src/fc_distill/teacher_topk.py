@@ -17,6 +17,7 @@ Needs both extras (`uv sync --extra inference --extra train`): TRL tokenizes, vL
 """
 
 import argparse
+import gc
 import json
 import os
 import random
@@ -147,11 +148,19 @@ def coverage(rows: Sequence[RowTopk], *, k: int) -> dict[str, float]:
     }
 
 
+class Tokenized(NamedTuple):
+    """One row as fc-sft trains on it: its input ids and the answer positions (those with a
+    label). Numpy, because 52,424 rows as lists of Python ints filled the machine's 15 GB."""
+
+    input_ids: Ints
+    positions: Ints
+
+
 def training_tokens(
     records: Sequence[tuple[int, SftRecord]], tokenizer: Any
-) -> dict[int, tuple[list[int], list[int]]]:
-    """Each row's input ids and labels exactly as fc-sft's SFTTrainer builds them: TRL's own
-    dataset preparation (chat template, completion mask, truncation), keyed by row id."""
+) -> dict[int, Tokenized]:
+    """Each row's input ids and answer positions exactly as fc-sft's SFTTrainer builds them:
+    TRL's own dataset preparation (chat template, completion mask, truncation), keyed by row id."""
     import trl
     from datasets import Dataset
     from trl import SFTConfig, SFTTrainer
@@ -171,14 +180,17 @@ def training_tokens(
     prepared = SFTTrainer._prepare_dataset(
         trainer, dataset, tokenizer, config, False, None, "train"
     )
-    return {r["row_id"]: (r["input_ids"], r["labels"]) for r in prepared}
+    return {
+        r["row_id"]: Tokenized(
+            np.array(r["input_ids"], dtype=np.int32),
+            np.array(answer_positions(r["labels"]), dtype=np.int32),
+        )
+        for r in prepared.select_columns(["row_id", "input_ids", "labels"])
+    }
 
 
-def score_row(
-    row_id: int, input_ids: Sequence[int], labels: Sequence[int], logprobs: Any, k: int
-) -> RowTopk:
+def score_row(row_id: int, input_ids: Ints, positions: Ints, logprobs: Any, k: int) -> RowTopk:
     """One row's answer positions from vLLM's flat prompt log-probs (`FlatLogprobs`)."""
-    positions = answer_positions(labels)
     picked = []
     for p in positions:
         a, b = logprobs.start_indices[p], logprobs.end_indices[p]
@@ -187,7 +199,7 @@ def score_row(
                 token_ids=logprobs.token_ids[a:b],
                 logprobs=logprobs.logprobs[a:b],
                 ranks=logprobs.ranks[a:b],
-                token=input_ids[p],
+                token=int(input_ids[p]),
                 k=k,
             )
         )
@@ -195,8 +207,8 @@ def score_row(
         raise ValueError(f"row {row_id}: a position has fewer than {k} entries")
     return RowTopk(
         row_id=row_id,
-        positions=np.array(positions, dtype=np.int32),
-        tokens=np.array([input_ids[p] for p in positions], dtype=np.int32),
+        positions=positions,
+        tokens=input_ids[positions],
         ids=np.array([p.ids for p in picked], dtype=np.int32).reshape(-1, k),
         logprobs=np.array([p.logprobs for p in picked], dtype=np.float32).reshape(-1, k),
         token_logprob=np.array([p.token_logprob for p in picked], dtype=np.float32),
@@ -208,7 +220,12 @@ def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--teacher-run", type=Path, required=True, help="the fc-eval train run B used")
     ap.add_argument("--n-rows", type=int, default=None, help="random rows, seed 0 (default: all)")
-    ap.add_argument("--chunk", type=int, default=2048, help="rows per vLLM call (host memory)")
+    ap.add_argument(
+        "--chunk",
+        type=int,
+        default=512,
+        help="rows per vLLM call; their prompt log-probs (k + 1 per position) sit in host memory",
+    )
     ap.add_argument("--gpu-mem", type=float, default=GPU_MEM, help="vLLM gpu_memory_utilization")
     ap.add_argument("--out", type=Path, default=None, help="default: runs/<run name>")
     ap.add_argument(
@@ -239,7 +256,7 @@ def main() -> None:
     tokens = training_tokens(kept, tokenizer)
     order = [row_id for row_id, _ in kept if row_id in tokens]
     answer_mismatches = sum(
-        not answer_matches(records[i], tokenizer.decode([t for t in tokens[i][1] if t != IGNORE]))
+        not answer_matches(records[i], tokenizer.decode(tokens[i].input_ids[tokens[i].positions]))
         for i in order
     )
     counts |= {
@@ -249,6 +266,8 @@ def main() -> None:
     print("rows:", json.dumps(counts))
     if answer_mismatches or counts["dropped_by_tokenization"]:
         raise RuntimeError("the tokenized rows aren't B's answers; nothing scored")
+    del rows, kept, records  # host memory: vLLM's process needs it next
+    gc.collect()
 
     name = f"topk-{K}-{Path(args.teacher_run).name}" + (
         "" if args.n_rows is None else f"-n{args.n_rows}"
@@ -276,16 +295,16 @@ def main() -> None:
     vllm_mismatches, seconds = 0, 0.0
     for start in range(0, len(order), args.chunk):
         chunk = order[start : start + args.chunk]
-        prompts = [TokensPrompt(prompt_token_ids=tokens[i][0]) for i in chunk]
+        prompts = [TokensPrompt(prompt_token_ids=tokens[i].input_ids.tolist()) for i in chunk]
         t0 = time.perf_counter()
         outputs = llm.generate(prompts, params, use_tqdm=False)
         seconds += time.perf_counter() - t0
         for row_id, o in zip(chunk, outputs, strict=True):
-            input_ids, labels = tokens[row_id]
-            if list(o.prompt_token_ids or []) != input_ids:
+            input_ids, positions = tokens[row_id]
+            if list(o.prompt_token_ids or []) != input_ids.tolist():
                 vllm_mismatches += 1
                 continue
-            results.append(score_row(row_id, input_ids, labels, o.prompt_logprobs, K))
+            results.append(score_row(row_id, input_ids, positions, o.prompt_logprobs, K))
         print(f"{start + len(chunk)} / {len(order)} rows, {seconds / 3600:.2f} GPU-h")
 
     save_topk(out / "topk.npz", results)
